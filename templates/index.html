@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    
+    <link rel="stylesheet" href="/static/index.css">
+
+    <script>
+        const savedSettings = {{ settings|tojson }};
+    </script>
+    <script type="text/javascript" src="/static/index.js"></script>
+</head>
+<body>
+    <main>
+        <form id="slideshow" onsubmit="handleSubmit(event)">
+            <div class="input-label">Enable</div>
+            <div class="input-container">
+                <span class="input-before">Off</span>
+                <input type="range" class="settings-input" name="isEnabled" min="0" max="1">
+                <span class="input-after">On</span>
+            </div>
+    
+        
+            <div class="input-label">Blend (ms)</div>
+            <div class="current-value">[Current: <span id="blend-current-value"></span>]</div>
+            <div class="input-container">
+                <span class="input-before">0</span>
+                <input type="range" class="settings-input" name="blend" id="blend" min="0" max="1000" step="25">
+                <span class="input-after">1000</span>
+            </div>
+    
+        
+            <div class="input-label">Speed (sec)</div>
+            <div class="current-value">[Current: <span id="speed-current-value"></span>]</div>
+            <div class="input-container">
+                <span class="input-before">5</span>
+                <input type="range" class="settings-input" name="speed" id="speed" min="5" max="600" step="5">
+                <span class="input-after">600</span>
+            </div>
+    
+    
+            <div class="input-label">Randomize</div>
+            <input type="checkbox" name="randomize"/>
+            <div class="input-container">
+            </div>
+    
+            <button type="button" onclick="handleResetToDefault()">Reset to default</button>
+            <button type="submit">Save</button>
+        </form>
+    </main>
+</body>
+</html>
