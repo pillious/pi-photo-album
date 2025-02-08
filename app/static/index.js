@@ -8,7 +8,7 @@ const formId = 'slideshow';
 
 let state = { ...defaultState };
 
-const handleSubmit = (e) => {
+const handleSettingsSubmit = (e) => {
     e.preventDefault();
 
     // Confirmation dialog
@@ -75,6 +75,71 @@ const saveState = async (state) => {
     return respObj.status === 'ok';
 };
 
+/// Image Upload Logic
+let filesInStaging = {};
+
+const handleFileUploadChange = (e) => {
+    const files = e.target.files;
+    console.log(files)
+
+    for (const file of files) {
+        filesInStaging[file.name] = file;
+    }
+
+    // Clear input
+    e.target.value = null;
+
+    console.log(filesInStaging);
+    updateFileStagingUI();
+}
+
+const updateFileStagingUI = () => {
+    const stagingList = document.getElementById('image-staging-list');
+    stagingList.innerHTML = '';
+
+    for (const fileName in filesInStaging) {
+        const li = document.createElement('li');
+        li.innerHTML = fileName;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.classList.add('staging-remove-btn')
+        removeBtn.innerHTML = 'x';
+        removeBtn.onclick = () => {
+            delete filesInStaging[fileName];
+            stagingList.removeChild(li)
+        };
+
+        li.prepend(removeBtn);
+
+        stagingList.appendChild(li);
+    }
+}
+
+const handleImagesUpload = async (e) => {
+    e.preventDefault();
+
+    const data = new FormData();
+
+    for (const file of Object.values(filesInStaging)) {
+        console.log(file);
+        data.append('file', file)
+    }
+
+    const resp = await fetch('/upload-images', {
+        method: 'POST',
+        body: data,
+    });
+    const r = await resp.text();
+    console.log(r);
+    console.log(resp.ok)
+
+    if (resp.ok) {
+        // Clear staging
+        filesInStaging = {};
+        updateFileStagingUI();
+    }
+}
+
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log(savedSettings);
@@ -87,9 +152,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('speed').addEventListener('input', (e) => {
         document.getElementById('speed-current-value').innerHTML = e.target.value;
     });
+
+    document.getElementById('image-upload-btn').addEventListener('click', 
+        () => document.getElementById('image-upload-input-hidden').click()
+    );
 });
 
 // Utils
 const clamp = (val, min, max) => {
     return Math.min(Math.max(val, min), max);
 };
+

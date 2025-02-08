@@ -1,0 +1,43 @@
+/* main {
+    width: 500px;
+} */
+
+.input-label {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.input-container {
+    display: flex;
+    justify-content: left;
+    gap: 4px;
+    margin-bottom: 0.5rem;
+}
+
+/* Staging list styles */
+#image-upload-input-hidden {
+    display: none;
+}
+
+#image-staging-list {
+    list-style-type: none;
+    padding: 0;
+}   
+
+#image-staging-list li {
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    padding: 0.25rem;
+}
+
+#image-staging-list .staging-remove-btn {
+    margin-right: 0.5rem;
+    scale: 0.75;
+    padding: 0.25rem 0.5rem;
+    background-color: #f00;
+    color: #fff;
+    border: none;
+    border-radius: 100%;
+    cursor: pointer;
+}
