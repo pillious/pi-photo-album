@@ -1,13 +1,7 @@
 import os
 import json
 
-settings_file = os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/settings.json'))
-default_settings = {
-    "isEnabled": True, 
-    "blend": 250, 
-    "speed": 30, 
-    "randomize": False
-}
+import globals
 
 def start_slideshow(album: str, blend: int, speed: int, randomize: bool):
     """
@@ -34,14 +28,14 @@ def stop_slideshow():
     return os.system(cmd)
 
 def load_settings():
-    if not os.path.exists(settings_file):
-        return default_settings
+    if not os.path.exists(globals.SETTINGS_FILE):
+        return globals.DEFAULT_SETTINGS
 
-    with open(settings_file, 'r') as f:
+    with open(globals.SETTINGS_FILE, 'r') as f:
         return json.load(f)
 
 # Expects a dictionary of settings.
 def save_settings_to_file(settings):
-    os.makedirs(os.path.dirname(settings_file), exist_ok=True)
-    with open(settings_file, 'w') as f:
+    os.makedirs(os.path.dirname(globals.SETTINGS_FILE), exist_ok=True)
+    with open(globals.SETTINGS_FILE, 'w') as f:
         json.dump(settings, f)

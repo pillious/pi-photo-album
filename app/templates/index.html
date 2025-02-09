@@ -3,19 +3,22 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Document</title>
+        <title>PI Photo Album</title>
 
         <link rel="stylesheet" href="/static/index.css" />
 
         <script>
-            // 'settings' is coming from Flask.
+            // These are coming from Flask.
             const savedSettings = {{ settings|tojson }};
+            const fileStructureSnapshot = {{ fileStructure|tojson }};
         </script>
         <script type="text/javascript" src="/static/index.js"></script>
     </head>
     <body>
         <main>
             <form id="slideshow" onsubmit="handleSettingsSubmit(event)">
+                <input type="text" name="album" placeholder="album path"/>
+
                 <div class="input-label">Enable</div>
                 <div class="input-container">
                     <span class="input-before">Off</span>
@@ -70,12 +73,15 @@
                     id="image-upload-input-hidden"
                     multiple
                     onchange="handleFileUploadChange(event)"
+                    accept=".jpg,.jpeg,.png,.webp,.heif,.heic"
                 />
 
                 <button type="submit">Upload</button>
 
                 <ul id="image-staging-list" title="Upload Images"></ul>
             </form>
+
+            <ul id="file-system-tree"> </ul>
         </main>
     </body>
 </html>

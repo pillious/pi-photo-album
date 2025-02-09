@@ -1,5 +1,5 @@
 
-from adapters.s3_adapter import S3Adapter
+from cloud_adapters.s3_adapter import S3Adapter
 import os
 from dotenv import load_dotenv
 

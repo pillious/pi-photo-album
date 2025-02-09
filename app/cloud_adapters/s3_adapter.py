@@ -1,8 +1,8 @@
 import boto3
 import os
 
-from adapters.adapter import Adapter
-from adapters.exceptions import AdapterException
+from cloud_adapters.adapter import Adapter
+from cloud_adapters.exceptions import AdapterException
 
 class S3Adapter(Adapter):
     def __init__(self, bucket_name: str):

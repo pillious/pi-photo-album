@@ -1,7 +1,4 @@
-/* main {
-    width: 500px;
-} */
-
+/* Settings form styles */
 .input-label {
     font-size: 1rem;
     font-weight: bold;
@@ -40,4 +37,15 @@
     border: none;
     border-radius: 100%;
     cursor: pointer;
+}
+
+/* File system styles */
+.album-name {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.hide-album-btn, .create-album-btn {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
 }
