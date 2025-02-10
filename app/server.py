@@ -15,6 +15,8 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 128 * 1024 * 1024 # 128MB
 app.config['UPLOAD_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'}
 
+# TODO: configure the user to be pulled in (may be as an env var?)
+# The username shoud be the same as the one set on AWS.
 user_dir = "alee1246"
 shared_dir = "Shared"
 
@@ -70,7 +72,8 @@ def save_settings():
     # Update display with the new settings.
     print(slideshow.stop_slideshow())
     if cleanedSettings["isEnabled"]:
-        print(slideshow.start_slideshow("~/albums/nature", cleanedSettings["blend"], cleanedSettings["speed"], cleanedSettings["randomize"]))
+        album_path = f"{globals.BASE_DIR}/albums/{cleanedSettings['album']}"
+        print(slideshow.start_slideshow(album_path, cleanedSettings["blend"], cleanedSettings["speed"], cleanedSettings["randomize"]))
 
     return jsonify({"status": "ok"})
 

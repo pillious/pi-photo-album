@@ -13,11 +13,17 @@
             const fileStructureSnapshot = {{ fileStructure|tojson }};
         </script>
         <script type="text/javascript" src="/static/index.js"></script>
+        <script type="text/javascript" src="/static/settings.js"></script>
+        <script type="text/javascript" src="/static/imageUploader.js"></script>
+        <script type="text/javascript" src="/static/fileSystem.js"></script>
+        <script type="text/javascript" src="/static/utils.js"></script>
     </head>
     <body>
         <main>
             <form id="slideshow" onsubmit="handleSettingsSubmit(event)">
-                <input type="text" name="album" placeholder="album path"/>
+                <select name="album">
+                    <option value="" disabled>--Select an album--</option>
+                </select>
 
                 <div class="input-label">Enable</div>
                 <div class="input-container">
