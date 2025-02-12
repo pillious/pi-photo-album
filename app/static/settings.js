@@ -1,15 +1,6 @@
 /*
 Settings Logic
 */
-const defaultSettings = {
-    album: 'alee1246/nature ',
-    isEnabled: true,
-    blend: 250,
-    speed: 30,
-    randomize: false,
-};
-let settingsState = { ...defaultSettings };
-
 const handleSettingsSubmit = (e) => {
     e.preventDefault();
 
@@ -53,7 +44,7 @@ const handleResetToDefault = () => {
 
 const updateSettingsUI = (newState) => {
     settingsState = { ...newState };
-    const form = document.getElementById('slideshow');
+    const form = document.getElementById('slideshow-settings');
     form.elements.namedItem('isEnabled').value = settingsState.isEnabled ? 1 : 0;
     form.elements.namedItem('blend').value = settingsState.blend;
     form.elements.namedItem('speed').value = settingsState.speed;
@@ -66,7 +57,7 @@ const updateSettingsUI = (newState) => {
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
     // Remove the leading 'album/'
-    const albumPaths = getAlbumPaths(fileStructureSnapshot).map((path) =>
+    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map((path) =>
         path.substring(path.indexOf('/') + 1)
     );
     for (const path of albumPaths) {

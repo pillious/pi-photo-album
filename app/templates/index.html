@@ -20,9 +20,12 @@
     </head>
     <body>
         <main>
-            <form id="slideshow" onsubmit="handleSettingsSubmit(event)">
+            <h2>PI Photo Album</h1>
+            <h3>Slideshow Settings</h3>
+            <form id="slideshow-settings" onsubmit="handleSettingsSubmit(event)">
+                <div class="input-label">Album</div>
                 <select name="album">
-                    <option value="" disabled>--Select an album--</option>
+                    <option value="" disabled>-- Select an Album --</option>
                 </select>
 
                 <div class="input-label">Enable</div>
@@ -72,8 +75,13 @@
                 <button type="submit">Save</button>
             </form>
 
+            <hr />
+
+            <h3>Upload Images</h3>
             <form onsubmit="handleImagesUpload(event)">
+
                 <button type="button" id="image-upload-btn">Select Images From Device</button>
+
                 <input
                     type="file"
                     id="image-upload-input-hidden"
@@ -84,9 +92,12 @@
 
                 <button type="submit">Upload</button>
 
-                <ul id="image-staging-list" title="Upload Images"></ul>
+                <ul id="image-staging-list"></ul>
             </form>
 
+            <hr />
+
+            <h3>File System</h3>
             <ul id="file-system-tree"> </ul>
         </main>
     </body>

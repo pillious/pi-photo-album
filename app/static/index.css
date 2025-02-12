@@ -22,9 +22,6 @@
 }   
 
 #image-staging-list li {
-    display: flex;
-    justify-content: left;
-    align-items: center;
     padding: 0.25rem;
 }
 
@@ -37,6 +34,16 @@
     border: none;
     border-radius: 100%;
     cursor: pointer;
+}
+
+#image-staging-list .staging-album-selector {
+    margin: 0 0.5rem;
+}
+
+#image-staging-list .set-album-for-all-btn{
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    display: block;
 }
 
 /* File system styles */

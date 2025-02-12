@@ -1,10 +1,25 @@
+// Global Variables
+const DEFAULT_SETTINGS = {
+    album: 'alee1246/nature',
+    isEnabled: true,
+    blend: 250,
+    speed: 30,
+    randomize: false,
+};
+const ALLOWED_FILE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'];
+
+let settingsState = { ...DEFAULT_SETTINGS };
+
+// List[{name: {fileContent: File, album: str}}]
+let filesInStaging = {};
+
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log(savedSettings);
     updateSettingsUI(savedSettings);
 
     console.log(fileStructureSnapshot);
-    updateFileSystemUI(fileStructureSnapshot);
+    updateFileSystemUI();
 
     document.getElementById('blend').addEventListener('input', (e) => {
         document.getElementById('blend-current-value').innerHTML = e.target.value;
