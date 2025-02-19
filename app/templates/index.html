@@ -98,7 +98,25 @@
             <hr />
 
             <h3>File System</h3>
+            <button onClick="showCreateFolderDialog()">Create Album</button>
+            <button>TODO: Save Changes</button>
             <ul id="file-system-tree"> </ul>
         </main>
+
+        <div class="overlay"></div>
+        <dialog id="create-folder-dialog">
+            <form onsubmit="handleCreateFolder(event)">
+                <p>New Album:</p>
+                <select name="folderPath">
+                    <option value="" disabled>-- Select an Album --</option>
+                </select>
+                <input type="text" name="folderName" placeholder="My Album"/>
+                <div>
+                    <button onclick="hideCreateFolderDialog()" type="button">Cancel</button>
+                    <button type="submit">Confirm</button>
+                </div>
+            </form>
+        </dialog>
+        
     </body>
 </html>

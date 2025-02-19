@@ -19,7 +19,7 @@ const updateFileStagingUI = () => {
     const stagingList = document.getElementById('image-staging-list');
     stagingList.innerHTML = '';
 
-    const albumPaths = getAlbumPaths(fileStructureSnapshot, true).map(
+    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
         (path) => path.substring(path.indexOf('/') + 1) // Remove the leading 'album/'
     );
 
@@ -39,16 +39,6 @@ const updateFileStagingUI = () => {
     }
 
     createSetAlbumForAllBtn();
-};
-
-const updateAllSelectors = () => {
-    const albumPath = document
-        .getElementById('image-staging-list')
-        .firstElementChild.querySelector('.staging-album-selector').value;
-    for (const fileName in filesInStaging) {
-        filesInStaging[fileName].album = albumPath;
-    }
-    updateFileStagingUI();
 };
 
 const createStagedFileUI = (fileName, album, albumPaths) => {

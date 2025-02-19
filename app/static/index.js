@@ -34,4 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
         .addEventListener('click', () =>
             document.getElementById('image-upload-input-hidden').click()
         );
+
+    document.getElementById('create-folder-dialog').addEventListener('close', () => {
+        // To handle case of `close` triggered by clicking out or pressing ESC
+        document.querySelector('.overlay').style.display = 'none';
+    });
 });

@@ -57,7 +57,7 @@ const updateSettingsUI = (newState) => {
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
     // Remove the leading 'album/'
-    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map((path) =>
+    const albumPaths = getAlbumPaths(fileStructureSnapshot, true).map((path) =>
         path.substring(path.indexOf('/') + 1)
     );
     for (const path of albumPaths) {

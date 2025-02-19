@@ -1,38 +1,34 @@
-const clamp = (val, min, max) => {
-    return Math.min(Math.max(val, min), max);
-};
+const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
-const getFileExtension = (filename) => {
-    return filename.split('.').pop().toLowerCase();
-}
+const getFileExtension = (filename) => filename.split('.').pop().toLowerCase();
 
-const isImageFile = (filename) => {
-    const ext = getFileExtension(filename);
-    return ALLOWED_FILE_EXTENSIONS.includes(ext);
-}
+const isImageFile = (filename) => ALLOWED_FILE_EXTENSIONS.includes(getFileExtension(filename));
 
-// Returns a list of paths to all the folders that contain a file as a direct child.
-// If ignoreEmptyFolders is true, folders that contain no files as direct children are not included.
+// Returns a list of paths to all the folders.
+// If ignoreEmptyFolders is true, folders that contain no files as direct children are not included. Folders that only contain other folders are still included.
 const getAlbumPaths = (fileSystem, ignoreEmptyFolders) => {
-    return _getAlbumPaths(fileSystem, ignoreEmptyFolders, []);
-};
+    const _getAlbumPaths = (fileSystem, ignoreEmptyFolders, stack) => {
+        if (fileSystem === null || fileSystem === undefined || fileSystem === '') return [];
+        if (!ignoreEmptyFolders && Object.keys(fileSystem).length === 0) return [stack.join('/')];
 
-// Recursive helper function for getAlbumPaths
-const _getAlbumPaths = (fileSystem, ignoreEmptyFolders, stack) => {
-    if (fileSystem === null || fileSystem === undefined || fileSystem === '') return [];
-    if (!ignoreEmptyFolders && Object.keys(fileSystem).length === 0) return [stack.join('/')];
-
-    let added = false;
-    let paths = [];
-    for (const [key, val] of Object.entries(fileSystem)) {
-        if (typeof val === 'object') {
-            paths = [...paths, ..._getAlbumPaths(val, ignoreEmptyFolders, [...stack, key])];
-        } else {
-            if (!added) {
+        let added = false;
+        let paths = [];
+        for (const [key, val] of Object.entries(fileSystem)) {
+            if (typeof val === 'object') {
+                paths = [...paths, ..._getAlbumPaths(val, ignoreEmptyFolders, [...stack, key])];
+                // Need this to add folder even if it only contains other folders.
+                if (!ignoreEmptyFolders && !added && stack.length > 1) {
+                    paths.push(stack.join('/'));
+                    added = true;
+                }
+            } else if (!added) {
                 paths.push(stack.join('/'));
                 added = true;
             }
         }
-    }
-    return paths;
+
+        return paths;
+    };
+
+    return _getAlbumPaths(fileSystem, ignoreEmptyFolders, []);
 };

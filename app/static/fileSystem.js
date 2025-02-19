@@ -15,7 +15,6 @@ const updateFileSystemUI = () => {
         for (const [key, val] of Object.entries(fsObj)) {
             const currPath = parentPath + '/' + key;
             if (typeof val === 'object') {
-
                 // Folder Name List Item
                 const folderLi = document.createElement('li');
                 folderLi.classList.add('album-name');
@@ -39,22 +38,7 @@ const updateFileSystemUI = () => {
                     hideBtn.innerHTML = folderUl.style.display === 'none' ? 'Show' : 'Hide';
                 };
 
-                // Button to create a subfolder
-                const createAlbumBtn = document.createElement('button');
-                createAlbumBtn.innerHTML = 'Create Album';
-                createAlbumBtn.classList.add('create-album-btn');
-                createAlbumBtn.onclick = () => {
-                    const albumName = prompt('Enter album name');
-                    if (albumName !== null && albumName.trim() !== '' && !(albumName in val)) {
-                        console.log((currPath + '/' + albumName.trim()).substring(1));
-                        updateFileSystem('', (currPath + '/' + albumName.trim()).substring(1));
-                        updateFileSystemUI();
-                        updateSettingsUI(settingsState);
-                    }
-                };
-
                 folderLi.appendChild(hideBtn);
-                folderLi.appendChild(createAlbumBtn);
 
                 stack.push([val, key]);
             } else {
@@ -67,8 +51,61 @@ const updateFileSystemUI = () => {
     }
 };
 
+const showCreateFolderDialog = () => {
+    document.getElementById('create-folder-dialog').showModal();
+    document.querySelector('.overlay').style.display = 'block';
+
+    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
+        // Remove the leading 'album/' and add a trailing '/'
+        (path) => path.substring(path.indexOf('/') + 1) + '/'
+    );
+
+    const select = document.getElementById('create-folder-dialog').querySelector('select');
+    select.innerHTML = select.firstElementChild.outerHTML;
+    for (const path of albumPaths) {
+        const option = document.createElement('option');
+        option.value = path;
+        option.innerHTML = path;
+        select.appendChild(option);
+    }
+};
+
+const hideCreateFolderDialog = () => {
+    document.getElementById('create-folder-dialog').close();
+    document.querySelector('.overlay').style.display = 'none';
+
+    const form = document.getElementById('create-folder-dialog').querySelector('form');
+    form.reset();
+}
+
+const handleCreateFolder = (e) => {
+    e.preventDefault();
+
+    const fields = new FormData(e.target);
+    const folderPath = fields.get('folderPath');
+    const folderName = fields.get('folderName').trim();
+
+    if (folderPath === '') {
+        alert('Folder path cannot be empty');
+        return;
+    }
+    if (folderName === '') {
+        alert('Folder name cannot be empty');
+        return;
+    }
+
+    // TODO: sanatize folder name.
+    updateFileSystem('', folderPath + folderName);
+
+    updateFileSystemUI();
+    updateSettingsUI(settingsState);
+    updateFileStagingUI();
+
+    hideCreateFolderDialog();
+};
+
 // Update the file system object with the new file path
-// If currFilePath is empty and newFilePath is nonempty, creates a new file.
+// If currFilePath is empty and newFilePath is nonempty, creates a new file. Does nothing if the file already exists.
 // If currFilePath is nonempty and newFilePath is empty, deletes the file.
 // If currFilePath and newFilePath are nonempty, moves the file.
 const updateFileSystem = (currFilePath, newFilePath) => {
@@ -81,12 +118,11 @@ const updateFileSystem = (currFilePath, newFilePath) => {
         let isFolder = !isImageFile(newFilePath);
         const newFilePathParts = newFilePath.split('/');
         let loc = fileStructureSnapshot.albums;
-        for (let i = 0; i < newFilePathParts.length; i++) {
-            if (i === newFilePathParts.length - 1) {
-                loc[newFilePathParts[i]] = isFolder ? {} : '';
-            } else {
-                loc = loc[newFilePathParts[i]];
-            }
+        for (let i = 0; i < newFilePathParts.length - 1; i++) {
+            loc = loc[newFilePathParts[i]];
+        }
+        if (!(newFilePathParts[newFilePathParts.length - 1] in loc)) {
+            loc[newFilePathParts[newFilePathParts.length - 1]] = isFolder ? {} : '';
         }
     } else if (currFilePath !== '' && newFilePath === '') {
         // Delete
