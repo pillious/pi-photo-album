@@ -56,7 +56,7 @@ const showCreateFolderDialog = () => {
     document.querySelector('.overlay').style.display = 'block';
 
     const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
-        // Remove the leading 'album/' and add a trailing '/'
+        // Remove the leading 'albums/' and add a trailing '/'
         (path) => path.substring(path.indexOf('/') + 1) + '/'
     );
 
@@ -83,7 +83,7 @@ const handleCreateFolder = (e) => {
 
     const fields = new FormData(e.target);
     const folderPath = fields.get('folderPath');
-    const folderName = fields.get('folderName').trim();
+    const folderName = secureFilename(fields.get('folderName').trim());
 
     if (folderPath === '') {
         alert('Folder path cannot be empty');
@@ -94,7 +94,6 @@ const handleCreateFolder = (e) => {
         return;
     }
 
-    // TODO: sanatize folder name.
     updateFileSystem('', folderPath + folderName);
 
     updateFileSystemUI();

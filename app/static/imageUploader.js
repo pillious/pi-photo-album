@@ -4,7 +4,7 @@ Image Upload Logic
 const handleFileUploadChange = (e) => {
     const files = e.target.files;
     for (const file of files) {
-        filesInStaging[file.name] = { fileContent: file, album: '' };
+        filesInStaging[secureFilename(file.name)] = { fileContent: file, album: '' };
     }
 
     // Clear the invisible file input after getting the files.
@@ -20,7 +20,7 @@ const updateFileStagingUI = () => {
     stagingList.innerHTML = '';
 
     const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
-        (path) => path.substring(path.indexOf('/') + 1) // Remove the leading 'album/'
+        (path) => path.substring(path.indexOf('/') + 1) // Remove the leading 'albums/'
     );
 
     console.log(filesInStaging);
@@ -29,7 +29,7 @@ const updateFileStagingUI = () => {
         const listItem = createStagedFileUI(fileName, album, albumPaths);
         listItem.querySelector('.staging-remove-btn').onclick = () => {
             delete filesInStaging[fileName];
-            stagingList.removeChild(li);
+            stagingList.removeChild(listItem);
         };
         listItem.querySelector('.staging-album-selector').onchange = (e) => {
             filesInStaging[fileName].album = e.target.value;

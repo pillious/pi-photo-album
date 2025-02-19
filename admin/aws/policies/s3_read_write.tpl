@@ -12,8 +12,8 @@
             "Condition": {
                 "StringLike": {
                     "s3:prefix": [
-                        "$${aws:username}/*",
-                        "shared/*"
+                        "albums/$${aws:username}/*",
+                        "albums/shared/*"
                     ]
                 }
             }
@@ -26,8 +26,8 @@
                 "s3:DeleteObject"
             ],
             "Resource": [
-                "${bucket_arn}/$${aws:username}/*",
-                "${bucket_arn}/shared/*"
+                "${bucket_arn}/albums/$${aws:username}/*",
+                "${bucket_arn}/albums/shared/*"
             ]
         }
     ]

@@ -1,8 +1,6 @@
 from flask import Flask, render_template, request, jsonify
-import os
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-from werkzeug.datastructures import FileStorage
 
 from cloud_adapters import s3_adapter
 import slideshow
@@ -12,13 +10,13 @@ import globals
 load_dotenv()
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 128 * 1024 * 1024 # 128MB
-app.config['UPLOAD_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'}
+app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
+app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
 
 # TODO: configure the user to be pulled in (may be as an env var?)
 # The username shoud be the same as the one set on AWS.
-user_dir = "alee1246"
-shared_dir = "Shared"
+# user_dir = "alee1246"
+# shared_dir = "Shared"
 
 cloud_adapter = s3_adapter.S3Adapter('pi-photo-album-s3')
 
@@ -87,8 +85,10 @@ def upload_images():
 
     # TEMP_SHARED = False
 
-    print(request.files.keys())
-    for album_path in request.files.keys():
+    album_paths = request.files.keys()
+    # Sanatize paths
+    album_paths = ["/".join([secure_filename(p) for p in album_path.split('/')]) for album_path in album_paths]   
+    for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
             print(album_path, secure_filename(image.filename))
@@ -109,7 +109,7 @@ def upload_images():
 
             # cloud = True
             # if cloud:
-            #     prefix_len = len(f"{BASE_DIR}/album/")
+            #     prefix_len = len(f"{BASE_DIR}/albums/")
             #     print(f"insert s3: {loc}, {loc[prefix_len:]}")
             #     # TODO: upload to cloud
             #     # TODO: also need to handle json file of the current state.

@@ -38,8 +38,8 @@ const handleSettingsSubmit = (e) => {
 };
 
 const handleResetToDefault = () => {
-    saveState(defaultSettings);
-    updateSettingsUI(defaultSettings);
+    saveState(DEFAULT_SETTINGS);
+    updateSettingsUI(DEFAULT_SETTINGS);
 };
 
 const updateSettingsUI = (newState) => {
@@ -56,7 +56,7 @@ const updateSettingsUI = (newState) => {
     // Populate the album select dropdown
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
-    // Remove the leading 'album/'
+    // Remove the leading 'albums/'
     const albumPaths = getAlbumPaths(fileStructureSnapshot, true).map((path) =>
         path.substring(path.indexOf('/') + 1)
     );
