@@ -33,33 +33,67 @@ const getAlbumPaths = (fileSystem, ignoreEmptyFolders) => {
     return _getAlbumPaths(fileSystem, ignoreEmptyFolders, []);
 };
 
-
 // Equivalent of Werkzeug's secure_filename function in Python
-function secureFilename(filename) {
+const secureFilename = (filename) => {
     // Normalize Unicode characters to ASCII
-    filename = filename.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    filename = filename.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
     // Remove non-ASCII characters
-    filename = filename.replace(/[^\x00-\x7F]/g, "");
+    filename = filename.replace(/[^\x00-\x7F]/g, '');
 
     // Replace path separators with spaces
-    filename = filename.replace(/[\/\\]/g, " ");
+    filename = filename.replace(/[\/\\]/g, ' ');
 
     // Remove unwanted characters and replace spaces with underscores
-    filename = filename.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_+/g, "_");
+    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_');
 
     // Trim leading and trailing dots or underscores
-    filename = filename.replace(/^[_\.]+|[_\.]+$/g, "");
+    filename = filename.replace(/^[_\.]+|[_\.]+$/g, '');
 
     // Handle Windows reserved filenames
     const windowsReservedNames = [
-        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+        'CON',
+        'PRN',
+        'AUX',
+        'NUL',
+        'COM1',
+        'COM2',
+        'COM3',
+        'COM4',
+        'COM5',
+        'COM6',
+        'COM7',
+        'COM8',
+        'COM9',
+        'LPT1',
+        'LPT2',
+        'LPT3',
+        'LPT4',
+        'LPT5',
+        'LPT6',
+        'LPT7',
+        'LPT8',
+        'LPT9',
     ];
-    const baseName = filename.split(".")[0].toUpperCase();
+    const baseName = filename.split('.')[0].toUpperCase();
     if (windowsReservedNames.includes(baseName)) {
         filename = `_${filename}`;
     }
 
     return filename;
-}
+};
+
+// Generates a 128 bit UUID returned as a hex string
+// const genUUID = () => {
+//     return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+//         (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
+//     );
+// };
+
+// const uuidToBytes = (uuid) => {
+//     // Remove dashes
+//     const hex = uuid.replace(/-/g, '');
+//     // Convert hex to Uint8Array
+//     const bytes = new Uint8Array(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
+//     return bytes
+// };

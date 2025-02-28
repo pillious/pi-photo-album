@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 
 from cloud_adapters import s3_adapter
 import slideshow
@@ -78,12 +79,9 @@ def save_settings():
 @app.route('/upload-images', methods=['POST'])
 @enforce_mime('multipart/form-data')
 def upload_images():
-    # TODO: I can tell if it's a shared file if the key starts with shared/
     saved_files = []
     failed_files = []
     heif_files = []
-
-    # TEMP_SHARED = False
 
     album_paths = request.files.keys()
     # Sanatize paths
@@ -91,11 +89,9 @@ def upload_images():
     for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
-            print(album_path, secure_filename(image.filename))
-
             image_name = secure_filename(image.filename)
             file_extension = utils.get_file_extension(image_name)
-            if file_extension not in app.config['UPLOAD_EXTENSIONS']:
+            if file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
                 failed_files.append(image_name)
                 continue
 
@@ -105,15 +101,6 @@ def upload_images():
             else:
                 loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image)
                 saved_files.append(loc)
-                print(loc)
-
-            # cloud = True
-            # if cloud:
-            #     prefix_len = len(f"{BASE_DIR}/albums/")
-            #     print(f"insert s3: {loc}, {loc[prefix_len:]}")
-            #     # TODO: upload to cloud
-            #     # TODO: also need to handle json file of the current state.
-            #     # cloud_adapter.insert(loc, loc[prefix_len:])
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
@@ -121,9 +108,14 @@ def upload_images():
         heif_paths = [f"{globals.TMP_STORAGE}/{heif_file}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
-            saved_files.append(heif_files[i]) if code == 0 else failed_files.append(heif_files[i])
-                
-    # TODO: bulk upload to cloud.
+            saved_files.append(jpg_paths[i]) if code == 0 else failed_files.append(heif_files[i])
+
+    # Bulk upload to cloud
+    if len(saved_files) > 0:     
+        success, failure = cloud_adapter.insertBulk(saved_files, [sf[len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
+        print(success, failure)
+        # TODO: send this to UI
+        failed_files = failed_files + failure
 
     return jsonify({"status": "ok", "failed": failed_files})
 

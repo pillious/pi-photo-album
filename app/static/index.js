@@ -10,7 +10,7 @@ const ALLOWED_FILE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'];
 
 let settingsState = { ...DEFAULT_SETTINGS };
 
-// List[{name: {fileContent: File, album: str}}]
+// List[{name: {fileContent: File, album: str}]
 let filesInStaging = {};
 
 // On page load

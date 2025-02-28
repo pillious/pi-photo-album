@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import List, Tuple
 
 
 class Adapter(ABC):
@@ -10,9 +11,10 @@ class Adapter(ABC):
     def insert(self, image_path: str, image_key: str) -> bool:
         pass
     
-    # @abstractmethod
-    # def insertBatch(self, images):
-    #     pass
+    # Return: Tuple[success, failure]
+    @abstractmethod
+    def insertBulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
+        pass
 
     @abstractmethod
     def remove(self, image_key: str) -> bool:

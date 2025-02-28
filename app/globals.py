@@ -22,3 +22,5 @@ TMP_STORAGE = BASE_DIR + "/tmp"
 
 MAX_CONTENT_LENGTH = 128 * 1024 * 1024 # 128MB
 ALLOWED_FILE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'}
+
+ALLOWED_PREFIXES = {'Shared', os.getenv('USERNAME')} if os.getenv('USERNAME') else {'Shared'}

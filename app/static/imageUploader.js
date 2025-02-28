@@ -4,7 +4,7 @@ Image Upload Logic
 const handleFileUploadChange = (e) => {
     const files = e.target.files;
     for (const file of files) {
-        filesInStaging[secureFilename(file.name)] = { fileContent: file, album: '' };
+        filesInStaging[secureFilename(file.name)] = { fileContent: file, album: ''};
     }
 
     // Clear the invisible file input after getting the files.
@@ -94,9 +94,9 @@ const handleImagesUpload = async (e) => {
     if (Object.keys(filesInStaging).length === 0) return;
 
     const data = new FormData();
-    for (const { fileContent, album } of Object.values(filesInStaging)) {
+    for (const [id, { fileContent, album, fileName }] of Object.entries(filesInStaging)) {
         // Preliminary validation
-        if (!isImageFile(fileContent.name)) {
+        if (!isImageFile(fileName)) {
             alert('Please upload the following file types: ' + ALLOWED_FILE_EXTENSIONS.join(', '));
             return;
         }
@@ -105,7 +105,6 @@ const handleImagesUpload = async (e) => {
             return;
         }
 
-        console.log(fileContent);
         data.append(album, fileContent);
     }
     try {
@@ -119,6 +118,9 @@ const handleImagesUpload = async (e) => {
         if (respData.status !== 'ok') throw new Error('Failed to upload images');
         const newFilesInStaging = {};
         for (const failed of respData.failed) {
+            // TODO: figure something out here.
+            // TODO (???): The issue is that the files can be changed by server to be _1 etc.
+            // Solution: pass an uuid to the server, then server returns uuid of failed files.
             if (failed in filesInStaging) {
                 newFilesInStaging[failed] = filesInStaging[failed];
             }

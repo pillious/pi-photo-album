@@ -13,7 +13,7 @@
                 "StringLike": {
                     "s3:prefix": [
                         "albums/$${aws:username}/*",
-                        "albums/shared/*"
+                        "albums/Shared/*"
                     ]
                 }
             }
@@ -27,7 +27,7 @@
             ],
             "Resource": [
                 "${bucket_arn}/albums/$${aws:username}/*",
-                "${bucket_arn}/albums/shared/*"
+                "${bucket_arn}/albums/Shared/*"
             ]
         }
     ]
