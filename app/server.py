@@ -1,3 +1,5 @@
+import json
+from typing import Dict, List, Tuple
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -79,45 +81,61 @@ def save_settings():
 @app.route('/upload-images', methods=['POST'])
 @enforce_mime('multipart/form-data')
 def upload_images():
-    saved_files = []
-    failed_files = []
-    heif_files = []
+    # Dict[filename: id]
+    file_ids: Dict[Tuple[str, str]] = {}
+    # All lists have format List[(id, file_path)]
+    saved_files: List[Tuple[str, str]] = []
+    failed_files: List[Tuple[str, str]] = []
+    heif_files: List[Tuple[str, str]] = []
+
+    req_metadata = request.form.get("metadata")
+    if not req_metadata:
+        return jsonify({"status": "error", "message": "No metadata provided"}), 400
+    try:
+        file_ids = json.loads(req_metadata)["files"]
+    except json.JSONDecodeError:
+        return jsonify({"status": "error", "message": "Invalid metadata provided"}), 400
 
     album_paths = request.files.keys()
-    # Sanatize paths
+    # Sanatize file paths
     album_paths = ["/".join([secure_filename(p) for p in album_path.split('/')]) for album_path in album_paths]   
     for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
+            id = file_ids.get(image.filename, "")
             image_name = secure_filename(image.filename)
             file_extension = utils.get_file_extension(image_name)
-            if file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
-                failed_files.append(image_name)
+            if True or file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
+                failed_files.append((id, image_name))
                 continue
 
             if file_extension in {'heif', 'heic'}:
-                heif_files.append(image_name)
+                heif_files.append((id, image_name))
                 image.save(f"{globals.TMP_STORAGE}/{image_name}")
             else:
                 loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image)
-                saved_files.append(loc)
+                saved_files.append((id, loc))
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file.rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
-        heif_paths = [f"{globals.TMP_STORAGE}/{heif_file}" for heif_file in heif_files]
+        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
+        heif_paths = [f"{globals.TMP_STORAGE}/{heif_file[1]}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
-            saved_files.append(jpg_paths[i]) if code == 0 else failed_files.append(heif_files[i])
+            saved_files.append((jpg_paths[i], heif_files[i][0])) if code == 0 else failed_files.append((heif_files[i], heif_files[i][0]))
+
+    print(file_ids)
+    print(saved_files)
+    print(failed_files)
 
     # Bulk upload to cloud
-    if len(saved_files) > 0:     
-        success, failure = cloud_adapter.insertBulk(saved_files, [sf[len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
-        print(success, failure)
-        # TODO: send this to UI
-        failed_files = failed_files + failure
+    # if len(saved_files) > 0:     
+    #     success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
+    #     print(success, failure)
+    #     # TODO: send this to UI
+    #     failed_files = failed_files + failure
 
-    return jsonify({"status": "ok", "failed": failed_files})
+    return jsonify({"status": "ok", "failed": [ff[0] for ff in failed_files]})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

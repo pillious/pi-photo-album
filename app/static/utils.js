@@ -83,17 +83,8 @@ const secureFilename = (filename) => {
     return filename;
 };
 
-// Generates a 128 bit UUID returned as a hex string
-// const genUUID = () => {
-//     return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
-//         (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
-//     );
-// };
-
-// const uuidToBytes = (uuid) => {
-//     // Remove dashes
-//     const hex = uuid.replace(/-/g, '');
-//     // Convert hex to Uint8Array
-//     const bytes = new Uint8Array(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
-//     return bytes
-// };
+const sha256 = async (s) => {
+    inputBytes = new TextEncoder().encode(s);
+    hashBytes = await window.crypto.subtle.digest('SHA-256', inputBytes);
+    return Array.from(new Uint8Array(hashBytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
+};

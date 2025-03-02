@@ -1,10 +1,16 @@
 /*
 Image Upload Logic
 */
-const handleFileUploadChange = (e) => {
+const handleFileUploadChange = async (e) => {
     const files = e.target.files;
     for (const file of files) {
-        filesInStaging[secureFilename(file.name)] = { fileContent: file, album: ''};
+        let fileName = secureFilename(file.name);
+        // Using hash over uuid to prevent duplicate filenames in staging.
+        filesInStaging[await sha256(fileName)] = {
+            fileContent: file,
+            album: '',
+            fileName,
+        };
     }
 
     // Clear the invisible file input after getting the files.
@@ -25,20 +31,26 @@ const updateFileStagingUI = () => {
 
     console.log(filesInStaging);
 
-    for (const [fileName, { album }] of Object.entries(filesInStaging)) {
+    for (const [id, { album, fileName }] of Object.entries(filesInStaging)) {
         const listItem = createStagedFileUI(fileName, album, albumPaths);
         listItem.querySelector('.staging-remove-btn').onclick = () => {
-            delete filesInStaging[fileName];
+            const isFirstChild = listItem === stagingList.firstElementChild;
+
+            delete filesInStaging[id];
             stagingList.removeChild(listItem);
+
+            updateUploadButtonState();
+            if (isFirstChild) createSetAlbumForAllBtn();
         };
         listItem.querySelector('.staging-album-selector').onchange = (e) => {
-            filesInStaging[fileName].album = e.target.value;
+            filesInStaging[id].album = e.target.value;
         };
 
         stagingList.appendChild(listItem);
     }
 
     createSetAlbumForAllBtn();
+    updateUploadButtonState();
 };
 
 const createStagedFileUI = (fileName, album, albumPaths) => {
@@ -56,7 +68,6 @@ const createStagedFileUI = (fileName, album, albumPaths) => {
     const albumInput = document.createElement('select');
     albumInput.classList.add('staging-album-selector');
     albumInput.innerHTML = selectorTitle;
-    console.log(album);
     albumInput.value = album;
     albumPaths.forEach((path) => {
         const option = document.createElement('option');
@@ -80,8 +91,8 @@ const createSetAlbumForAllBtn = () => {
             const selectors = document.querySelectorAll('.staging-album-selector');
             const albumPath = selectors[0].value;
             let count = 0;
-            for (const fileName in filesInStaging) {
-                filesInStaging[fileName].album = albumPath;
+            for (const id in filesInStaging) {
+                filesInStaging[id].album = albumPath;
                 selectors[count++].value = albumPath;
             }
         };
@@ -94,19 +105,24 @@ const handleImagesUpload = async (e) => {
     if (Object.keys(filesInStaging).length === 0) return;
 
     const data = new FormData();
+    metadata = { files: {} };
     for (const [id, { fileContent, album, fileName }] of Object.entries(filesInStaging)) {
         // Preliminary validation
         if (!isImageFile(fileName)) {
-            alert('Please upload the following file types: ' + ALLOWED_FILE_EXTENSIONS.join(', '));
+            alert(
+                'Files must be one of the following types: ' + ALLOWED_FILE_EXTENSIONS.join(', ')
+            );
             return;
         }
         if (album.trim() === '') {
             alert('Please assign an album to all images.');
             return;
         }
-
+        metadata.files[fileName] = id;
         data.append(album, fileContent);
     }
+    data.append('metadata', JSON.stringify(metadata));
+
     try {
         const resp = await fetch('/upload-images', {
             method: 'POST',
@@ -117,33 +133,36 @@ const handleImagesUpload = async (e) => {
         console.log(respData);
         if (respData.status !== 'ok') throw new Error('Failed to upload images');
         const newFilesInStaging = {};
-        for (const failed of respData.failed) {
-            // TODO: figure something out here.
-            // TODO (???): The issue is that the files can be changed by server to be _1 etc.
-            // Solution: pass an uuid to the server, then server returns uuid of failed files.
+        for (const failed of respData.failed ?? []) {
             if (failed in filesInStaging) {
                 newFilesInStaging[failed] = filesInStaging[failed];
             }
         }
         alert(
-            `Successfully uploaded ${Object.keys(filesInStaging).length - Object.keys(newFilesInStaging).length} image(s).
-            
-            ${respData.failed.length > 0 ? 'Failed to upload:' : ''}
-            ${Object.keys(newFilesInStaging).join('\n')}`
+            `Successfully uploaded ${Object.keys(filesInStaging).length - Object.keys(newFilesInStaging).length} image(s).\n\n${'failed' in respData && respData.failed.length > 0 ? 'Failed to upload:' : ''}\n${Object.keys(
+                newFilesInStaging
+            )
+                .map((id) => filesInStaging[id].fileName)
+                .join('\n')}`
         );
 
-        for (const fileName in filesInStaging) {
-            if (!(fileName in newFilesInStaging)) {
-                filePath = filesInStaging[fileName].album + '/' + fileName;
-                updateFileSystem('', filePath);
+        // All successfully uploaded files removed from staging & added to file system.
+        for (const id in filesInStaging) {
+            if (!(id in newFilesInStaging)) {
+                const { album, fileName } = filesInStaging[id];
+                updateFileSystem('', album + '/' + fileName);
             }
         }
-        updateFileSystemUI();
-
         filesInStaging = newFilesInStaging;
+        updateFileSystemUI();
         updateFileStagingUI();
     } catch (e) {
         console.error(e);
         alert('Failed to upload images.');
     }
+};
+
+const updateUploadButtonState = () => {
+    const uploadBtn = document.getElementById('upload-submit-btn');
+    uploadBtn.disabled = Object.keys(filesInStaging).length === 0;
 };

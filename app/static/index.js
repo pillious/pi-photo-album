@@ -10,16 +10,16 @@ const ALLOWED_FILE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'];
 
 let settingsState = { ...DEFAULT_SETTINGS };
 
-// List[{name: {fileContent: File, album: str}]
+// List[{id: {fileContent: File, album: str, fileName: str}]
 let filesInStaging = {};
 
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log(savedSettings);
-    updateSettingsUI(savedSettings);
-
     console.log(fileStructureSnapshot);
+    updateSettingsUI(savedSettings);
     updateFileSystemUI();
+    updateFileStagingUI();
 
     document.getElementById('blend').addEventListener('input', (e) => {
         document.getElementById('blend-current-value').innerHTML = e.target.value;
