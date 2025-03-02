@@ -18,7 +18,7 @@ image_path = os.path.abspath(f"./{image_base_path}/{image_key}")
 # print(image_path)
 
 
-print(s3.insert(image_path, image_key))
+# print(s3.insert(image_path, image_key))
 
 # s3.remove(image_key)
 
@@ -27,3 +27,5 @@ print(s3.insert(image_path, image_key))
 #     f.write(obj)
 
 # slideshow.start_slideshow("albums/nature", 250, 30, True)
+
+s3.insertQueue("TESING")

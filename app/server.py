@@ -3,7 +3,6 @@ from typing import Dict, List, Tuple
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-from werkzeug.datastructures import FileStorage
 
 from cloud_adapters import s3_adapter
 import slideshow
@@ -105,7 +104,7 @@ def upload_images():
             id = file_ids.get(image.filename, "")
             image_name = secure_filename(image.filename)
             file_extension = utils.get_file_extension(image_name)
-            if True or file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
+            if file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
                 failed_files.append((id, image_name))
                 continue
 
@@ -118,22 +117,18 @@ def upload_images():
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
+        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[1]}.jpg" for heif_file in heif_files]
         heif_paths = [f"{globals.TMP_STORAGE}/{heif_file[1]}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
-            saved_files.append((jpg_paths[i], heif_files[i][0])) if code == 0 else failed_files.append((heif_files[i], heif_files[i][0]))
-
-    print(file_ids)
-    print(saved_files)
-    print(failed_files)
+            saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append((heif_files[i][0], heif_files[i]))
 
     # Bulk upload to cloud
-    # if len(saved_files) > 0:     
-    #     success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
-    #     print(success, failure)
-    #     # TODO: send this to UI
-    #     failed_files = failed_files + failure
+    if len(saved_files) > 0:     
+        success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
+        print(success, failure)
+        # TODO: send this to UI
+        failed_files = failed_files + failure
 
     return jsonify({"status": "ok", "failed": [ff[0] for ff in failed_files]})
 

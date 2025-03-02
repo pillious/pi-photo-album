@@ -1,4 +1,4 @@
-resource "aws_s3_bucket" "photos" {
+resource "aws_s3_bucket" "photo_bucket" {
   bucket = "${local.app_name}-s3"
 
   tags = {
@@ -8,10 +8,10 @@ resource "aws_s3_bucket" "photos" {
 }
 
 # Policy for accessing S3 bucket
-resource "aws_iam_policy" "photos_s3_policy" {
+resource "aws_iam_policy" "photo_bucket_policy" {
   name = "${local.app_name}-s3-policy"
   policy = templatefile(
-    "policies/s3_read_write.tpl",
-    { bucket_arn = aws_s3_bucket.photos.arn }
+    "policies/s3_read_write_policy.tpl",
+    { bucket_arn = aws_s3_bucket.photo_bucket.arn }
   )
 }
