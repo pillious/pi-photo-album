@@ -32,6 +32,7 @@ def multiple_heif_to_jpg(heif_paths: List[str], jpg_paths: List[str], quality: i
     for heif_path, jpg_path in zip(heif_paths, jpg_paths):
         os.makedirs(os.path.dirname(heif_path), exist_ok=True)
         os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
+        # TODO: this isn't really necessary anymore
         jpg_path_new = handle_duplicate_file(os.path.dirname(jpg_path), os.path.basename(jpg_path))
         proc = subprocess.Popen(["heif-convert", "-q", str(quality), heif_path, jpg_path_new])
         procs.append(proc)
@@ -47,7 +48,7 @@ def multiple_heif_to_jpg(heif_paths: List[str], jpg_paths: List[str], quality: i
 def save_image_to_disk(album_path: str, image_name: str, image: FileStorage) -> str:
     loc = handle_duplicate_file(album_path, image_name)
     os.makedirs(album_path, exist_ok=True)
-    # image.save(loc)
+    image.save(loc)
     return loc
 
 def get_file_structure(root_dir: str):

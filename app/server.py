@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+import uuid
 
 from cloud_adapters import s3_adapter
 import slideshow
@@ -80,12 +81,10 @@ def save_settings():
 @app.route('/upload-images', methods=['POST'])
 @enforce_mime('multipart/form-data')
 def upload_images():
-    # Dict[filename: id]
-    file_ids: Dict[Tuple[str, str]] = {}
-    # All lists have format List[(id, file_path)]
-    saved_files: List[Tuple[str, str]] = []
-    failed_files: List[Tuple[str, str]] = []
-    heif_files: List[Tuple[str, str]] = []
+    file_ids: Dict[Tuple[str, str]] = {} # Dict[filename: guid]
+    saved_files: List[Tuple[str, str]] = [] # List[(guid, file_path)]
+    heif_files: List[Tuple[str, str]] = [] # List[(guid, file_path)]
+    failed_files: List[str] = [] # List[guid]
 
     req_metadata = request.form.get("metadata")
     if not req_metadata:
@@ -95,44 +94,49 @@ def upload_images():
     except json.JSONDecodeError:
         return jsonify({"status": "error", "message": "Invalid metadata provided"}), 400
 
+    IS_ONLINE = True
+
     album_paths = request.files.keys()
     # Sanatize file paths
     album_paths = ["/".join([secure_filename(p) for p in album_path.split('/')]) for album_path in album_paths]   
     for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
-            id = file_ids.get(image.filename, "")
-            image_name = secure_filename(image.filename)
+            # guid comes from the request data. It's not a trusted value! It's only use is to identify the files that failed to upload to cloud.
+            guid = file_ids.get(image.filename, "") 
+            image_name = f'{uuid.uuid4()}.{secure_filename(image.filename)}'
             file_extension = utils.get_file_extension(image_name)
             if file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
-                failed_files.append((id, image_name))
+                failed_files.append(guid)
                 continue
 
             if file_extension in {'heif', 'heic'}:
-                heif_files.append((id, image_name))
-                image.save(f"{globals.TMP_STORAGE}/{image_name}")
+                heif_files.append((guid, image_name))
+                image.save(f"{globals.TMP_STORAGE}/{image_name}") # Save to tmp storage
             else:
                 loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image)
-                saved_files.append((id, loc))
+                saved_files.append((guid, loc))
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[1]}.jpg" for heif_file in heif_files]
+        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
         heif_paths = [f"{globals.TMP_STORAGE}/{heif_file[1]}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
-            saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append((heif_files[i][0], heif_files[i]))
+            saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
 
-    if len(saved_files) > 0:     
+    if IS_ONLINE and len(saved_files) > 0:     
         # Bulk upload to cloud
         success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
-        failed_files = failed_files + [(sf[0], sf[1]) for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
+        failed_files = failed_files + [sf[0] for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
+        print(success,failure, failed_files)
         # Push events to queue
         for sf in success:
             message = json.dumps({"event": "PUT", "path": sf})
             cloud_adapter.insertQueue(message)
 
-    return jsonify({"status": "ok", "failed": [ff[0] for ff in failed_files]})
+    # returns the guids of the files that failed to upload.
+    return jsonify({"status": "ok", "failed": failed_files})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
