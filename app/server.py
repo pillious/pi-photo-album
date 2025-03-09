@@ -123,12 +123,14 @@ def upload_images():
         for i, code in enumerate(exit_codes):
             saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append((heif_files[i][0], heif_files[i]))
 
-    # Bulk upload to cloud
     if len(saved_files) > 0:     
+        # Bulk upload to cloud
         success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
-        print(success, failure)
-        # TODO: send this to UI
-        failed_files = failed_files + failure
+        failed_files = failed_files + [(sf[0], sf[1]) for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
+        # Push events to queue
+        for sf in success:
+            message = json.dumps({"event": "PUT", "path": sf})
+            cloud_adapter.insertQueue(message)
 
     return jsonify({"status": "ok", "failed": [ff[0] for ff in failed_files]})
 

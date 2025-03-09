@@ -33,22 +33,20 @@ class S3Adapter(Adapter):
 
     def insert(self, image_path: str, image_key: str) -> bool:
         print(f"Uploading {image_path} to {image_key}")
+        return True # TEMP
         try:
             return self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
     
     def insertBulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
-        success = []
-        failure = []
-
+        success, failure = [], []
         future_map = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for image_path, image_key in zip(image_paths, image_keys):
                 future = executor.submit(self.insert, image_path, image_key)
                 future_map[future] = image_key
 
-        
         for future, image_key in future_map.items():
             try:
                 ok = future.result() # This will raise an exception if self.insert() throws exception
@@ -57,7 +55,7 @@ class S3Adapter(Adapter):
                 else:
                     failure.append(image_key)
             except Exception as e:
-                print(e) # TEMP
+                print(e)
                 failure.append(image_key)
 
         return success, failure
@@ -71,7 +69,7 @@ class S3Adapter(Adapter):
 
     def insertQueue(self, message: str, message_group_id: str = "default"):
         self.sqs_client.send_message(
-            QueueUrl=os.getenv('PUSH_QUEUE_URL'),
+            QueueUrl=os.getenv('QUEUE_URL'),
             MessageBody=message,
             MessageGroupId=message_group_id
         )

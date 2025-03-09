@@ -1,25 +1,53 @@
 import boto3
 import time
 import uuid
+import json
+import os
 
 def lambda_handler(event, context):
-    dynamodb = boto3.client('dynamodb')
+    try:
+        if 'Records' not in event:
+            raise ValueError("No records")
 
-    dynamodb.put_item(TableName='pi-photo-album-event-table', Item={
-        'id': {'S': str(uuid.uuid4())},
-        'event': {'S': 'PUT'},
-        'path': {'S': 'my/path/to/somewhere'},
-        'timestamp': {'N': str(time.time())}
+        dynamodb = boto3.client('dynamodb')
+        sns = boto3.client('sns')
+        for message in event['Records']:
+            payload = json.loads(message['body'])
+            if 'event' not in payload or 'path' not in payload:
+                raise ValueError(f"Invalid payload: {payload}")
+            if 'event' == 'MOVE' and 'newPath' not in payload:
+                raise ValueError(f"Invalid payload: {payload}")
+            id = str(uuid.uuid4())
+            # TODO: remove the add to database.
+            add_to_db(dynamodb, id, payload['event'], payload['path'])
+            message_group_id = get_message_group_id(payload['path'])
+            message = {
+                "event": payload['event'], 
+                "path": payload['path'], 
+                "timestamp": round(time.time()), 
+                "messageGroupId": message_group_id,
+                "id": id
+            }
+            if 'newPath' in payload:
+                message['newPath'] = payload['newPath']
+            publish_event(sns, json.dumps(message), message_group_id)
+    except (ValueError, json.JSONDecodeError) as e:
+        print("Error: ", e)
+
+# TODO: remove.
+def add_to_db(dynamo_client, id: str, event: str, path: str):
+    dynamo_client.put_item(TableName=os.environ['TABLE_NAME'], Item={
+        'id': {'S': id},
+        'event': {'S': event},
+        'path': {'S': path},
+        'timestamp': {'N': str(round(time.time()))}
     })
 
-    for message in event['Records']:
-        process_message(message)
-    print("done")
+def publish_event(sns_client, message: str, message_group_id: str):
+    print(message, message_group_id)
+    # sns_client.publish(TopicArn=os.environ['SNS_TOPIC_ARN'], Message=message, MessageGroupId=message_group_id)
 
-def process_message(message):
-    try:
-        print(f"Processed message {message['body']}")
-        # TODO: Do interesting work based on the new message
-    except Exception as err:
-        print("An error occurred")
-        raise err
+def get_message_group_id(path: str):
+    if path.startswith("album/"):
+        path = path[len("album/"):]
+    return path.split('/')[0]
