@@ -7,7 +7,7 @@
                 "sts:AssumeRole"
             ],
             "Principal": {
-                "Service": "lambda.amazonaws.com"
+                "Service": "${service}"
             }
         }
     ]

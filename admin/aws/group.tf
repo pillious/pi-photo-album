@@ -46,8 +46,8 @@ EOF
 }
 
 resource "aws_iam_policy" "push_event_policy" {
-    name = "${local.app_name}-push-event-policy"
-    policy = templatefile("policies/push_event_policy.tpl", {queue_arn = aws_sqs_queue.event_queue.arn})
+  name   = "${local.app_name}-push-event-policy"
+  policy = templatefile("policies/push_event_policy.tpl", { queue_arn = aws_sqs_queue.event_queue.arn })
 }
 
 resource "aws_iam_policy_attachment" "assume_push_event_policy_attachment" {
