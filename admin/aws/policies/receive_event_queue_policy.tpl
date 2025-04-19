@@ -15,6 +15,18 @@
             } 
         },
         "Resource": "${queue_arn}"
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes"
+        ],
+        "Principal": {
+            "AWS": "${user_arn}"
+        },
+        "Resource": "${queue_arn}"
       }
     ]
 }

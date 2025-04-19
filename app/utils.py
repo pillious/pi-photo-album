@@ -2,8 +2,12 @@ import subprocess
 from typing import List
 import os
 from werkzeug.datastructures import FileStorage
+import boto3
+from botocore.credentials import RefreshableCredentials
+from botocore.session import get_session
 
 
+### General Utils
 def clamp(val, min, max):
     return max if val > max else min if val < min else val
 
@@ -51,6 +55,7 @@ def save_image_to_disk(album_path: str, image_name: str, image: FileStorage) -> 
     image.save(loc)
     return loc
 
+
 def get_file_structure(root_dir: str):
     """
     Generate a dictionary representing a file structure.
@@ -66,3 +71,50 @@ def get_file_structure(root_dir: str):
             parent = parent.setdefault(folder, {})
         parent[folders[-1]] = subdir
     return dir_dict
+
+def get_default_file_structure(username: str):
+    return {
+        "albums": {
+            username: {},
+            "Shared": {}
+        }
+    }
+
+def partial_dict_merge(d: dict, u: dict): 
+    """
+    Performs a deep merge on `d` to include all keys from `u` that are not already in `d`.
+    """
+    for k, v in u.items():
+        if k in d and isinstance(d[k], dict) and isinstance(v, dict):
+            partial_dict_merge(d[k], v)
+        elif k not in d:
+            d[k] = v
+    return d
+
+### AWS Session Utils
+def get_aws_autorefresh_session(aws_role_arn, session_name):
+    session_credentials = RefreshableCredentials.create_from_metadata(
+        metadata = get_aws_credentials(aws_role_arn, session_name),
+        refresh_using = lambda: get_aws_credentials(aws_role_arn, session_name),
+        method = 'sts-assume-role'
+    )
+
+    session = get_session()
+    session._credentials = session_credentials
+    autorefresh_session = boto3.Session(botocore_session=session)
+
+    return autorefresh_session, session_credentials
+
+def get_aws_credentials(aws_role_arn, session_name):
+        sts_client = boto3.client('sts')
+        assumed_role_object = sts_client.assume_role(
+            RoleArn = aws_role_arn,
+            RoleSessionName = session_name,
+            DurationSeconds = 900
+        )
+        return {
+            'access_key': assumed_role_object['Credentials']['AccessKeyId'],
+            'secret_key': assumed_role_object['Credentials']['SecretAccessKey'],
+            'token': assumed_role_object['Credentials']['SessionToken'],
+            'expiry_time': assumed_role_object['Credentials']['Expiration'].isoformat()
+        }

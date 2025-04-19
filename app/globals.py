@@ -1,17 +1,11 @@
 import os
 
 DEFAULT_SETTINGS = {
-    "album": "alee1246/nature",
+    "album": "Shared",
     "isEnabled": True, 
     "blend": 250, 
     "speed": 30, 
     "randomize": False
-}
-
-
-DEFAULT_FILE_STRUCTURE = {
-    "alee1246": {},
-    "Shared": {}
 }
 
 SETTINGS_FILE = os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/settings.json'))

@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import uuid
+import os
 
 from cloud_adapters import s3_adapter
 import slideshow
@@ -37,9 +38,9 @@ def enforce_mime(mime_type):
 @app.route('/', methods=['GET'])
 def index():
     settings = slideshow.load_settings()
+    default_file_structure = utils.get_default_file_structure(os.getenv('USERNAME'))
     file_structure = utils.get_file_structure(f"{globals.BASE_DIR}/albums")
-    if not file_structure:
-        file_structure = globals.DEFAULT_FILE_STRUCTURE
+    file_structure = utils.partial_dict_merge(file_structure, default_file_structure)
     return render_template('index.html', settings=settings, fileStructure=file_structure)
 
 @app.route('/save-settings', methods=['POST'])
@@ -132,11 +133,20 @@ def upload_images():
         print(success,failure, failed_files)
         # Push events to queue
         for sf in success:
-            message = json.dumps({"event": "PUT", "path": sf})
+            message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
             cloud_adapter.insertQueue(message)
 
     # returns the guids of the files that failed to upload.
     return jsonify({"status": "ok", "failed": failed_files})
+
+@app.route('/receive-event', methods=['POST'])
+@enforce_mime('application/json')
+def receive_event():
+    payload = request.json
+
+    print(payload)
+
+    return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

@@ -1,12 +1,12 @@
 /*
 Image Upload Logic
 */
-const handleFileUploadChange = async (e) => {
+const handleFileUploadChange = (e) => {
     const files = e.target.files;
     for (const file of files) {
         let fileName = secureFilename(file.name);
         // Using hash over uuid to prevent duplicate filenames in staging.
-        filesInStaging[await sha256(fileName)] = {
+        filesInStaging[String(cyrb53(fileName))] = {
             fileContent: file,
             album: '',
             fileName,

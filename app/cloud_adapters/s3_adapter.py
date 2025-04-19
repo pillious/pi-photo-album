@@ -1,11 +1,9 @@
 from typing import List, Tuple
 import boto3
-from botocore.credentials import RefreshableCredentials
-from botocore.session import get_session
 import os
-
 import concurrent.futures
 
+from utils import get_aws_autorefresh_session
 from cloud_adapters.adapter import Adapter
 from cloud_adapters.exceptions import AdapterException
 
@@ -16,10 +14,11 @@ class S3Adapter(Adapter):
             's3', 
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.getenv('AWS_REGION')
         )
 
-        autorefresh_session, _ = self._get_aws_autorefresh_session(os.getenv('PUSH_QUEUE_ROLE'), "push-queue-session")
-        self.sqs_client = autorefresh_session.client('sqs')
+        autorefresh_session, _ = get_aws_autorefresh_session(os.getenv('PUSH_QUEUE_ROLE'), "push-queue-session")
+        self.sqs_client = autorefresh_session.client('sqs', region_name=os.getenv('AWS_REGION'))
 
     def get_album(self, album_path):
         pass
@@ -66,34 +65,7 @@ class S3Adapter(Adapter):
 
     def insertQueue(self, message: str, message_group_id: str = "default"):
         self.sqs_client.send_message(
-            QueueUrl=os.getenv('QUEUE_URL'),
+            QueueUrl=os.getenv('PUSH_QUEUE_URL'),
             MessageBody=message,
             MessageGroupId=message_group_id
         )
-
-    def _get_aws_credentials(self, aws_role_arn, session_name):
-        sts_client = boto3.client('sts')
-        assumed_role_object = sts_client.assume_role(
-            RoleArn = aws_role_arn,
-            RoleSessionName = session_name,
-            DurationSeconds = 900
-        )
-        return {
-            'access_key': assumed_role_object['Credentials']['AccessKeyId'],
-            'secret_key': assumed_role_object['Credentials']['SecretAccessKey'],
-            'token': assumed_role_object['Credentials']['SessionToken'],
-            'expiry_time': assumed_role_object['Credentials']['Expiration'].isoformat()
-        }
-
-    def _get_aws_autorefresh_session(self, aws_role_arn, session_name):
-        session_credentials = RefreshableCredentials.create_from_metadata(
-            metadata = self._get_aws_credentials(aws_role_arn, session_name),
-            refresh_using = lambda: self._get_aws_credentials(aws_role_arn, session_name),
-            method = 'sts-assume-role'
-        )
-
-        session = get_session()
-        session._credentials = session_credentials
-        autorefresh_session = boto3.Session(botocore_session=session)
-
-        return autorefresh_session, session_credentials

@@ -1,6 +1,6 @@
 // Global Variables
 const DEFAULT_SETTINGS = {
-    album: 'alee1246/nature',
+    album: 'Shared',
     isEnabled: true,
     blend: 250,
     speed: 30,

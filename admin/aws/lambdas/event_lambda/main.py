@@ -22,6 +22,10 @@ def lambda_handler(event, context):
                 'messageGroupId': {
                     'DataType': 'String',
                     'StringValue': message_group_id
+                },
+                'sender': {
+                    'DataType': 'String',
+                    'StringValue': payload['sender']
                 }
             }
             message = {

@@ -34,8 +34,9 @@ resource "aws_sns_topic_subscription" "event_topic_subscription" {
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.receive_event_queue[each.key].arn
 
+  # Only accepts events to "Shared" folder that were not emitted from the current user.
   filter_policy = jsonencode({
-    # messageGroupId = [local.user_id_to_name[each.key], "Shared"]
+    sender         = [{ "anything-but" = [local.user_id_to_name[each.key]] }]
     messageGroupId = ["Shared"]
   })
 }
@@ -69,10 +70,12 @@ resource "aws_sqs_queue_policy" "receive_event_queue_policy" {
   for_each  = toset(local.user_ids)
   queue_url = aws_sqs_queue.receive_event_queue[each.key].id
   policy = templatefile(
-    "policies/allow-sns-write-policy.tpl",
+    "policies/receive_event_queue_policy.tpl",
     {
       topic_arn = aws_sns_topic.event_topic.arn,
       queue_arn = aws_sqs_queue.receive_event_queue[each.key].arn
+      user_arn  = aws_iam_user.pi_photo_album_user[each.key].arn
     }
   )
 }
+
