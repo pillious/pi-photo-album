@@ -1,71 +1,61 @@
-from abc import ABC, abstractmethod
-import boto3
-import os
 from dotenv import load_dotenv
+import requests
+import time
+import json
+import os
 
-# from utils import get_aws_autorefresh_session
+from consumer import SQSQueueConsumer
 
 load_dotenv()
 
+API_URL = f"http://localhost:{os.getenv('API_PORT', 5000)}"
+
+class APIStatusException(Exception):
+    pass
+
 def main():
     sqs_consumer = SQSQueueConsumer()
-
+    failed_health_checks = 0
     while True:
-        print("Polling for messages...")
-        # poll to check if the api is online before consuming events
-        # need somekind of health check endpoint
+        try:
+            response = requests.get(f"{API_URL}/health", timeout=10)
+            if response.status_code != 200:
+                raise APIStatusException(f"Status code: {response.status_code}")
+            status = response.json().get('status')
+            if status != 'ok':
+                raise APIStatusException(f"Status not ok: {status}")
+        except (requests.exceptions.RequestException, APIStatusException) as e:
+            failed_health_checks += 1
+            print(f"Health check failed ({failed_health_checks}): {e}")
+            time.sleep(2 ** min(failed_health_checks, 5)) # exponential backoff
+            continue
 
-        messages = sqs_consumer.recieveMessages()
-        if messages:
-            for message in messages.get('Messages', []):
-                print(f"Received message: {message['Body']}")
-                # Process the message here
-                # TODO ... 
-                # Delete the message after processing
-                sqs_consumer.deleteMessage(message['ReceiptHandle'])
+        print("Polling...") # DEBUG
+        failed_health_checks = 0
+        response = sqs_consumer.receive_messages()
+        if response:
+            messages = []
+            id_to_receipt_handles: dict[str, str] = {}
 
+            print(f"Received messages: {response}") # DEBUG
+            for sqs_message in response.get('Messages', []):
+                body = json.loads(sqs_message['Body'])
+                messages.append(body["Message"])
+                id_to_receipt_handles[sqs_message['MessageId']] = sqs_message['ReceiptHandle']
 
-class QueueConsumer(ABC):
-    @abstractmethod
-    def recieveMessages(self):
-        pass
-
-    @abstractmethod
-    def deleteMessage(self, receiptHandles):
-        pass
-
-class SQSQueueConsumer(QueueConsumer):
-    def __init__(self):
-        self.sqs_client = boto3.client(
-            'sqs', 
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION')
-        )
-
-        self.queue_url = os.getenv('RECEIVE_EVENT_QUEUE_URL')
-
-        self.MAX_POLLING_INTERVAL = 20 # 20 sec max allowed by sqs
-        self.MAX_MESSAGES = 10 # 10 messages max allowed by sqs
-        self.VISIBILITY_TIMEOUT = 30
-
-        # autorefresh_session, _ = get_aws_autorefresh_session(os.getenv('RECEIVE_EVENT_QUEUE_ROLE'), "receive-event-queue-session")
-        # self.sqs_client = autorefresh_session.client('sqs')
-
-    def recieveMessages(self):
-        return self.sqs_client.receive_message(
-            QueueUrl=self.queue_url,
-            MessageAttributeNames=['All'],
-            MaxNumberOfMessages=self.MAX_MESSAGES,
-            VisibilityTimeout=self.VISIBILITY_TIMEOUT,
-            WaitTimeSeconds=self.MAX_POLLING_INTERVAL
-        )
-    
-    def deleteMessage(self, receiptHandle):
-        return self.sqs_client.delete_message(
-            QueueUrl=self.queue_url,
-            ReceiptHandle=receiptHandle
-        )
+            if messages:
+                try:
+                    response = requests.post(f"{API_URL}/receive-events", json={"events": messages}, timeout=10)
+                    if response.status_code != 200:
+                        raise APIStatusException(f"Status code: {response.status_code}")
+                    status = response.json().get('status')
+                    if status != 'ok':
+                        raise APIStatusException(f"Status not ok: {status}")
+                except (requests.exceptions.RequestException, APIStatusException) as e:
+                    print(f"Error sending messages to API: {e}")
+                    time.sleep(10) # Wait for the full length of sqs VISIBILITY_TIMEOUT
+                    continue
+                sqs_consumer.delete_messages(id_to_receipt_handles)
 
 if __name__ == "__main__":
     main()

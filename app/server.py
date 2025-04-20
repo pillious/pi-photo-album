@@ -17,11 +17,6 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
 app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
 
-# TODO: configure the user to be pulled in (may be as an env var?)
-# The username shoud be the same as the one set on AWS.
-# user_dir = "alee1246"
-# shared_dir = "Shared"
-
 cloud_adapter = s3_adapter.S3Adapter('pi-photo-album-s3')
 
 def enforce_mime(mime_type):
@@ -115,7 +110,7 @@ def upload_images():
                 heif_files.append((guid, image_name))
                 image.save(f"{globals.TMP_STORAGE}/{image_name}") # Save to tmp storage
             else:
-                loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image)
+                loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image, True)
                 saved_files.append((guid, loc))
 
     # Parallelize the conversion of HEIF files to JPG.
@@ -139,14 +134,36 @@ def upload_images():
     # returns the guids of the files that failed to upload.
     return jsonify({"status": "ok", "failed": failed_files})
 
-@app.route('/receive-event', methods=['POST'])
+@app.route('/receive-events', methods=['POST'])
 @enforce_mime('application/json')
-def receive_event():
+def receive_events():
     payload = request.json
+
+    # {'events': ['{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}']}
+    # "newPath"
+    # expected to be in order
 
     print(payload)
 
+    for e in payload['events']:
+        event = json.loads(e)
+        match event["event"]:
+            case "PUT":
+                image = cloud_adapter.get(event["path"])
+                image_path = f'{globals.BASE_DIR}/{event["path"]}'
+                os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                with open(image_path, 'wb') as f:
+                    f.write(image)
+            case "DELETE":
+                continue
+            case "MOVE":
+                continue
+            
+    return jsonify({"status": "ok"})
+
+@app.route('/health', methods=['GET'])
+def health():
     return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=os.getenv('API_PORT', 5000))

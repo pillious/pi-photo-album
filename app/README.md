@@ -121,3 +121,26 @@ albums/
         shared_album2/
             image6.jpg
             image7.jpg
+
+
+### Message body from sqs
+```
+Message Body -> {
+  "Type" : "",
+  "MessageId" : "",
+  "SequenceNumber" : "",
+  "TopicArn" : "",
+  "Message" : "{\"event\": \"PUT\", \"path\": \"\", \"timestamp\": 1745037960, \"id\": \"\"}",
+  "Timestamp" : "",
+  "UnsubscribeURL" : "",
+  "MessageAttributes" : {
+    "messageGroupId" : {"Type":"String","Value":""},
+    "sender" : {"Type":"String","Value":""}
+  }
+}
+```
+
+TODO
+[] server max payload is 128mb. The client shouldn't try to send more than that.
+[] resync after going offline.
+[] server sent events to update client with events.

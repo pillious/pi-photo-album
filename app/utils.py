@@ -49,8 +49,10 @@ def multiple_heif_to_jpg(heif_paths: List[str], jpg_paths: List[str], quality: i
 
     return exit_codes
 
-def save_image_to_disk(album_path: str, image_name: str, image: FileStorage) -> str:
-    loc = handle_duplicate_file(album_path, image_name)
+def save_image_to_disk(album_path: str, image_name: str, image: FileStorage, handle_duplicates: bool) -> str:
+    loc = f"{album_path}/{image_name}"
+    if handle_duplicates:
+        loc = handle_duplicate_file(album_path, image_name)
     os.makedirs(album_path, exist_ok=True)
     image.save(loc)
     return loc
