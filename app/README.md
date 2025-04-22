@@ -144,3 +144,6 @@ TODO
 [] server max payload is 128mb. The client shouldn't try to send more than that.
 [] resync after going offline.
 [] server sent events to update client with events.
+
+[] fix heif upload
+[] fix s3 permissions to user prefix.

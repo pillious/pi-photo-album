@@ -1,11 +1,13 @@
 import json
 from typing import Dict, List, Tuple
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import uuid
 import os
+import queue
 
+from announcer import EventAnnouncer
 from cloud_adapters import s3_adapter
 import slideshow
 import utils
@@ -18,6 +20,7 @@ app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
 app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
 
 cloud_adapter = s3_adapter.S3Adapter('pi-photo-album-s3')
+event_announcer = EventAnnouncer()
 
 def enforce_mime(mime_type):
     def decorator(func):
@@ -158,8 +161,24 @@ def receive_events():
                 continue
             case "MOVE":
                 continue
+
+    event_announcer.announce(json.dumps(payload))
             
     return jsonify({"status": "ok"})
+
+@app.route('/stream-events', methods=['GET'])
+def stream_events():
+    def generator():
+        events_queue = event_announcer.subscribe()
+        keep_alive_interval = 120
+        while True:
+            try:
+                event = events_queue.get(timeout=keep_alive_interval)
+                yield event
+            except queue.Empty:
+                yield ": keep-alive\n\n"
+
+    return Response(generator(), mimetype='text/event-stream')
 
 @app.route('/health', methods=['GET'])
 def health():

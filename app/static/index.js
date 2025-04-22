@@ -16,7 +16,7 @@ let filesInStaging = {};
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log(savedSettings);
-    console.log(fileStructureSnapshot);
+    console.log(fileSystemSnapshot);
     updateSettingsUI(savedSettings);
     updateFileSystemUI();
     updateFileStagingUI();
@@ -39,4 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // To handle case of `close` triggered by clicking out or pressing ESC
         document.querySelector('.overlay').style.display = 'none';
     });
+
+    const eventStream = new EventSource('/stream-events')
+    eventStream.onmessage = (e) => {
+        if (e.data === "connected") {
+            console.log("DEBUG: Connection established to the event stream");
+            return
+        }
+        // We don't want to process the connection confirmation message.
+        handleEvent(e.data)
+    };
+    // eventStream.onerror = (e) => {
+    //     console.error("ERROR: Event stream error", e);
+    //     eventStream.close();
+    // };
 });

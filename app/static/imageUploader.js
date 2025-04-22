@@ -25,7 +25,7 @@ const updateFileStagingUI = () => {
     const stagingList = document.getElementById('image-staging-list');
     stagingList.innerHTML = '';
 
-    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
+    const albumPaths = getAlbumPaths(fileSystemSnapshot, false).map(
         (path) => path.substring(path.indexOf('/') + 1) // Remove the leading 'albums/'
     );
 
@@ -150,7 +150,7 @@ const handleImagesUpload = async (e) => {
         for (const id in filesInStaging) {
             if (!(id in newFilesInStaging)) {
                 const { album, fileName } = filesInStaging[id];
-                updateFileSystem('', album + '/' + fileName);
+                updateFileSystem(fileSystemSnapshot, '', album + '/' + fileName);
             }
         }
         filesInStaging = newFilesInStaging;

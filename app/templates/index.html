@@ -10,8 +10,9 @@
         <script>
             // These are coming from Flask.
             const savedSettings = {{ settings|tojson }};
-            const fileStructureSnapshot = {{ fileStructure|tojson }};
-        </script>
+            // {folderName: {...} | fileName: "", ...}
+            const fileSystemSnapshot = {{ fileStructure|tojson }}; 
+        </script> 
         <script type="text/javascript" src="/static/index.js"></script>
         <script type="text/javascript" src="/static/settings.js"></script>
         <script type="text/javascript" src="/static/imageUploader.js"></script>
@@ -99,8 +100,11 @@
 
             <h3>File System</h3>
             <button onClick="showCreateFolderDialog()">Create Album</button>
-            <button>TODO: Save Changes</button>
-            <ul id="file-system-tree"> </ul>
+            <button onClick="toggleFileSelection()">Select</button>
+            <button class="file-system-tools">Rename</button>
+            <button class="file-system-tools">Move</button>
+            <button class="file-system-tools">Delete</button>
+            <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
         </main>
 
         <div class="overlay"></div>

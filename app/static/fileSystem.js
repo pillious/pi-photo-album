@@ -1,30 +1,43 @@
 /*
 File System Logic
 */
+// {albums: {folderName: {...} | fileName: "", ...}}
+const selectedItems = { albums: {} };
+let allowFileSelection = false;
+
 const updateFileSystemUI = () => {
-    const fileSystemTreeRoot = document.getElementById('file-system-tree');
-    fileSystemTreeRoot.innerHTML = '';
+    const fsTreeRoot = document.querySelector('[data-fs-tree-]');
+    fsTreeRoot.innerHTML = '';
 
     const stack = [];
-    stack.push([fileStructureSnapshot.albums, 'file-system-tree']);
+    stack.push([fileSystemSnapshot.albums, fsTreeRoot, '']);
 
     while (stack.length > 0) {
-        const [fsObj, elemId] = stack.pop();
-        const parent = document.getElementById(elemId);
+        const [fsObj, parentElem, elemId] = stack.pop();
+        const parent = parentElem.querySelector(`[data-fs-tree-${elemId}]`) || fsTreeRoot;
         const parentPath = parent.getAttribute('data-album-path') || '';
         for (const [key, val] of Object.entries(fsObj)) {
-            const currPath = parentPath + '/' + key;
+            const currPath = parentPath === '' ? key : `${parentPath}/${key}`;
+
+            const selectItem = document.createElement('input');
+            selectItem.type = 'checkbox';
+            selectItem.hidden = !allowFileSelection;
+
             if (typeof val === 'object') {
                 // Folder Name List Item
                 const folderLi = document.createElement('li');
                 folderLi.classList.add('album-name');
-                folderLi.innerHTML = key;
                 folderLi.setAttribute('data-album-path', currPath);
+                const folderName = document.createElement('span');
+                folderName.innerHTML = key;
+                selectItem.onchange = (e) => handleSelectItem(e, currPath, false);
+                folderLi.appendChild(selectItem);
+                folderLi.appendChild(folderName);
                 parent.appendChild(folderLi);
 
                 // Folder Sublist
                 const folderUl = document.createElement('ul');
-                folderUl.id = key;
+                folderUl.setAttribute(`data-fs-tree-${key}`, '');
                 folderUl.setAttribute('data-album-path', currPath);
                 folderUl.style.display = 'none'; // Defaults to hiding files
                 parent.appendChild(folderUl);
@@ -40,11 +53,16 @@ const updateFileSystemUI = () => {
 
                 folderLi.appendChild(hideBtn);
 
-                stack.push([val, key]);
+                stack.push([val, parent, key]);
             } else {
                 const fileLi = document.createElement('li');
-                fileLi.innerHTML = key;
                 fileLi.setAttribute('data-album-path', currPath);
+                fileName = document.createElement('span');
+                fileName.innerHTML = key;
+                selectItem.onchange = (e) => handleSelectItem(e, currPath, true);
+                fileLi.appendChild(selectItem);
+                fileLi.appendChild(fileName);
+
                 parent.appendChild(fileLi);
             }
         }
@@ -55,7 +73,7 @@ const showCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').showModal();
     document.querySelector('.overlay').style.display = 'block';
 
-    const albumPaths = getAlbumPaths(fileStructureSnapshot, false).map(
+    const albumPaths = getAlbumPaths(fileSystemSnapshot, false).map(
         // Remove the leading 'albums/' and add a trailing '/'
         (path) => path.substring(path.indexOf('/') + 1) + '/'
     );
@@ -76,7 +94,7 @@ const hideCreateFolderDialog = () => {
 
     const form = document.getElementById('create-folder-dialog').querySelector('form');
     form.reset();
-}
+};
 
 const handleCreateFolder = (e) => {
     e.preventDefault();
@@ -94,7 +112,7 @@ const handleCreateFolder = (e) => {
         return;
     }
 
-    updateFileSystem('', folderPath + folderName);
+    updateFileSystem(fileSystemSnapshot, '', folderPath + folderName);
 
     updateFileSystemUI();
     updateSettingsUI(settingsState);
@@ -104,10 +122,10 @@ const handleCreateFolder = (e) => {
 };
 
 // Update the file system object with the new file path
-// If currFilePath is empty and newFilePath is nonempty, creates a new file. Does nothing if the file already exists.
+// If currFilePath is empty and newFilePath is nonempty, creates a new file (and creates any missing intermediate folders). Does nothing if the file already exists.
 // If currFilePath is nonempty and newFilePath is empty, deletes the file.
 // If currFilePath and newFilePath are nonempty, moves the file.
-const updateFileSystem = (currFilePath, newFilePath) => {
+const updateFileSystem = (fileSystem, currFilePath, newFilePath) => {
     if (currFilePath === newFilePath) {
         return;
     }
@@ -116,9 +134,13 @@ const updateFileSystem = (currFilePath, newFilePath) => {
         // Create
         let isFolder = !isImageFile(newFilePath);
         const newFilePathParts = newFilePath.split('/');
-        let loc = fileStructureSnapshot.albums;
+        let loc = fileSystem.albums;
         for (let i = 0; i < newFilePathParts.length - 1; i++) {
-            loc = loc[newFilePathParts[i]];
+            const part = newFilePathParts[i];
+            if (!(part in loc)) {
+                loc[part] = {};
+            }
+            loc = loc[part];
         }
         if (!(newFilePathParts[newFilePathParts.length - 1] in loc)) {
             loc[newFilePathParts[newFilePathParts.length - 1]] = isFolder ? {} : '';
@@ -127,7 +149,7 @@ const updateFileSystem = (currFilePath, newFilePath) => {
         // Delete
         const currFilePathParts = currFilePath.split('/');
         const currFileName = currFilePathParts.pop();
-        let loc = fileStructureSnapshot.albums;
+        let loc = fileSystem.albums;
         for (const part of currFilePathParts) {
             loc = loc[part];
         }
@@ -137,11 +159,98 @@ const updateFileSystem = (currFilePath, newFilePath) => {
         const currFilePathParts = currFilePath.split('/');
         const newFilePathParts = newFilePath.split('/');
         const currFileName = currFilePathParts.pop();
-        let loc = fileStructureSnapshot.albums;
+        let loc = fileSystem.albums;
         for (const part of currFilePathParts) {
             loc = loc[part];
         }
         loc[newFilePathParts[newFilePathParts.length - 1]] = loc[currFileName];
         delete loc[currFileName];
+    }
+};
+
+const handleSelectItem = (e, path, isFile) => {
+    console.log(path, isFile);
+
+    if (isFile) {
+        if (e.target.checked) updateFileSystem(selectedItems, '', path);
+        else updateFileSystem(selectedItems, path, '');
+    } else {
+        const parts = path.split('/');
+
+        const folders = [];
+
+        let loc = selectedItems.albums;
+        let snapshotLoc = fileSystemSnapshot.albums;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!(part in loc)) {
+                loc[part] = {};
+            }
+            loc = loc[part];
+            snapshotLoc = snapshotLoc[part];
+            folders;
+            console.log(loc, snapshotLoc);
+        }
+
+        if (e.target.checked) {
+            loc[parts[parts.length - 1]] = structuredClone(snapshotLoc[parts[parts.length - 1]]);
+        } else {
+            delete loc[parts[parts.length - 1]];
+        }
+
+        // Propagate change to children checkboxes
+        const children = document.querySelectorAll(`[data-album-path^="${path}/"]`);
+        for (const child of children) {
+            const checkbox = child.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                checkbox.checked = e.target.checked;
+                checkbox.disabled = e.target.checked;
+            }
+        }
+    }
+
+    console.log(selectedItems);
+};
+
+const toggleFileSelection = () => {
+    allowFileSelection = !allowFileSelection;
+    const selectItems = document
+        .querySelector('[data-fs-tree-]')
+        .querySelectorAll('input[type="checkbox"]');
+    for (const item of selectItems) {
+        item.hidden = !allowFileSelection;
+    }
+    const fileSelectionTools = document.querySelectorAll('.file-system-tools');
+    for (const elem of fileSelectionTools) {
+        elem.style.display = allowFileSelection ? 'inline' : 'none';
+    }
+    if (!allowFileSelection) selectedItems.albums = {};
+};
+
+const handleEvent = (data) => {
+    const event = JSON.parse(data);
+    console.log(event);
+
+    for (const e of event.events) {
+        const message = JSON.parse(e);
+        switch (message.event) {
+            case 'PUT':
+                // remove the leading 'albums/' from the path
+                messagePath = message.path.substring(message.path.indexOf('/') + 1);
+                updateFileSystem(fileSystemSnapshot, '', messagePath);
+                console.log('PUT event: ' + messagePath);
+                break;
+            case 'DELETE':
+                break;
+            case 'MOVE':
+                break;
+            default:
+                console.log('Unknown event type: ' + message.event);
+                break;
+        }
+    }
+
+    if (event.events.length > 0) {
+        updateFileSystemUI();
     }
 };
