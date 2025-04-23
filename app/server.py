@@ -112,6 +112,7 @@ def upload_images():
             if file_extension in {'heif', 'heic'}:
                 heif_files.append((guid, image_name))
                 image.save(f"{globals.TMP_STORAGE}/{image_name}") # Save to tmp storage
+                print(f"{globals.TMP_STORAGE}/{image_name}")
             else:
                 loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image, True)
                 saved_files.append((guid, loc))
@@ -130,12 +131,15 @@ def upload_images():
         failed_files = failed_files + [sf[0] for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
         print(success,failure, failed_files)
         # Push events to queue
-        for sf in success:
-            message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
-            cloud_adapter.insertQueue(message)
+        # for sf in success:
+        #     message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
+        #     cloud_adapter.insertQueue(message)
+    else:
+        success = [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files]
 
-    # returns the guids of the files that failed to upload.
-    return jsonify({"status": "ok", "failed": failed_files})
+    # failed: the guids of the files that failed to upload.
+    # success: the paths of the files that were successfully uploaded.
+    return jsonify({"status": "ok", "failed": failed_files, "success": success})
 
 @app.route('/receive-events', methods=['POST'])
 @enforce_mime('application/json')
@@ -185,4 +189,7 @@ def health():
     return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
+    os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
+    os.makedirs(globals.TMP_STORAGE, exist_ok=True)
+
     app.run(debug=True, host='0.0.0.0', port=os.getenv('API_PORT', 5000))

@@ -58,7 +58,7 @@ const updateFileSystemUI = () => {
                 const fileLi = document.createElement('li');
                 fileLi.setAttribute('data-album-path', currPath);
                 fileName = document.createElement('span');
-                fileName.innerHTML = key;
+                fileName.innerHTML = key.substring(key.indexOf('.') + 1);
                 selectItem.onchange = (e) => handleSelectItem(e, currPath, true);
                 fileLi.appendChild(selectItem);
                 fileLi.appendChild(fileName);

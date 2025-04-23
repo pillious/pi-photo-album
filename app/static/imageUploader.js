@@ -145,14 +145,13 @@ const handleImagesUpload = async (e) => {
                 .map((id) => filesInStaging[id].fileName)
                 .join('\n')}`
         );
-
-        // All successfully uploaded files removed from staging & added to file system.
-        for (const id in filesInStaging) {
-            if (!(id in newFilesInStaging)) {
-                const { album, fileName } = filesInStaging[id];
-                updateFileSystem(fileSystemSnapshot, '', album + '/' + fileName);
-            }
+        
+        // Update the file system snapshot with the new files
+        for (const success of respData.success ?? []) {
+            const filePath = success.substring(success.indexOf('/') + 1);
+            updateFileSystem(fileSystemSnapshot, '', filePath);
         }
+
         filesInStaging = newFilesInStaging;
         updateFileSystemUI();
         updateFileStagingUI();
