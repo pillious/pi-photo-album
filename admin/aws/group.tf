@@ -2,12 +2,6 @@ resource "aws_iam_group" "editor_group" {
   name = "${local.app_name}-group"
 }
 
-resource "aws_iam_policy_attachment" "editor_policy_attachment" {
-  name       = "${local.app_name}-editor-attachment"
-  groups     = [aws_iam_group.editor_group.name]
-  policy_arn = aws_iam_policy.photo_bucket_policy.arn
-}
-
 resource "aws_iam_user_group_membership" "editor_group_membership" {
   for_each = toset(local.user_ids)
   user     = aws_iam_user.pi_photo_album_user[each.key].name
