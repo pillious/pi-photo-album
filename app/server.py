@@ -146,28 +146,18 @@ def upload_images():
 @enforce_mime('application/json')
 def delete_images():
     files = request.json.get('files', [])
-
     if not files:
         return jsonify({"status": "ok", "failed": []})
     
-    # Local delete
     for f in files:
         os.remove(f"{globals.BASE_DIR}/{f}")
 
-    # Cloud delete
     success, failed = cloud_adapter.delete_bulk(files)
+    print(success, failed)
 
-    # Push events to queue
-    # TODO
-    cloud_adapter.insert_queue(json.dumps({"event": "DELETE", "path": f, "sender": os.getenv('USERNAME')}))
-
-    # TODO: need to batch the events when inserting into the queue somehow.
-
-
-            # for sf in success:
-        #     message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
-        #     cloud_adapter.insert_queue(message)
-
+    if success:
+        message = json.dumps({"events": [{"event": "DELETE", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
+        cloud_adapter.insert_queue(message)
 
     return jsonify({"status": "ok", "failed": failed})
 

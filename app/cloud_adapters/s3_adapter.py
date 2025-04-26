@@ -92,7 +92,6 @@ class S3Adapter(Adapter):
         )
         success = [item['Key'] for item in resp.get('Deleted', [])]
         failure = [item['Key'] for item in resp.get('Errors', [])]
-        print(resp)
         return success, failure
 
     @retry()

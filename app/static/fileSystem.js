@@ -5,6 +5,9 @@ File System Logic
 const selectedFiles = { albums: {} };
 let allowFileSelection = false;
 
+/**
+ * Creates the file system UI based on the file system object.
+ */
 const updateFileSystemUI = () => {
     const fsTreeRoot = document.querySelector('[data-fs-tree-]');
     fsTreeRoot.innerHTML = '';
@@ -19,6 +22,7 @@ const updateFileSystemUI = () => {
         for (const [key, val] of Object.entries(fsObj)) {
             const currPath = parentPath === '' ? key : `${parentPath}/${key}`;
 
+            // Checkbox for file selection
             const selectItem = document.createElement('input');
             selectItem.type = 'checkbox';
             selectItem.hidden = !allowFileSelection;
@@ -69,6 +73,10 @@ const updateFileSystemUI = () => {
     }
 };
 
+/**
+ * Shows the create folder dialog.
+ * The dialog is populated with the available album paths.
+ */
 const showCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').showModal();
     document.querySelector('.overlay').style.display = 'block';
@@ -88,6 +96,9 @@ const showCreateFolderDialog = () => {
     }
 };
 
+/**
+ * Hides the create folder dialog and resets the form.
+ */
 const hideCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').close();
     document.querySelector('.overlay').style.display = 'none';
@@ -96,6 +107,11 @@ const hideCreateFolderDialog = () => {
     form.reset();
 };
 
+/**
+ * Creates a new folder.
+ * 
+ * @param {Event} e 
+ */
 const handleCreateFolder = (e) => {
     e.preventDefault();
 
@@ -121,10 +137,16 @@ const handleCreateFolder = (e) => {
     hideCreateFolderDialog();
 };
 
-// Update the file system object with the new file path
-// If currFilePath is empty and newFilePath is nonempty, creates a new file (and creates any missing intermediate folders). Does nothing if the file already exists.
-// If currFilePath is nonempty and newFilePath is empty, deletes the file.
-// If currFilePath and newFilePath are nonempty, moves the file.
+/**
+ * Updates the file system object based on the following rules:
+ *
+ * - If currFilePath is empty and newFilePath is nonempty, creates a new file (and creates any missing intermediate folders). Does nothing if the file already exists.
+ * - If currFilePath is nonempty and newFilePath is empty, deletes the file.
+ * - If currFilePath and newFilePath are nonempty, moves the file.
+ * @param {Object<string, string | Object>} fileSystem
+ * @param {String} currFilePath
+ * @param {String} newFilePath
+ */
 const updateFileSystem = (fileSystem, currFilePath, newFilePath) => {
     if (currFilePath === newFilePath) {
         return;
@@ -168,6 +190,13 @@ const updateFileSystem = (fileSystem, currFilePath, newFilePath) => {
     }
 };
 
+/**
+ * Updates the selected files object. If the item selected/unselected is a folder, the change is propagated to all its children.
+ *
+ * @param {Event} e on change event
+ * @param {String} path the path of the selected file or folder
+ * @param {Boolean} isFile
+ */
 const handleSelectItem = (e, path, isFile) => {
     console.log(path, isFile);
 
@@ -212,21 +241,33 @@ const handleSelectItem = (e, path, isFile) => {
     console.log(selectedFiles);
 };
 
+/**
+ * Toggles the file selection mode. When toggled off, the selected files are cleared.
+ */
 const toggleFileSelection = () => {
     allowFileSelection = !allowFileSelection;
+    if (!allowFileSelection) selectedFiles.albums = {};
     const selectItems = document
         .querySelector('[data-fs-tree-]')
         .querySelectorAll('input[type="checkbox"]');
     for (const item of selectItems) {
         item.hidden = !allowFileSelection;
+        if (!allowFileSelection) {
+            item.checked = false;
+            item.disabled = false;
+        }
     }
     const fileSelectionTools = document.querySelectorAll('.file-system-tools');
     for (const elem of fileSelectionTools) {
         elem.style.display = allowFileSelection ? 'inline' : 'none';
     }
-    if (!allowFileSelection) selectedFiles.albums = {};
 };
 
+/**
+ * Handles events sent from the server and updates the file system object.
+ *
+ * @param {string} data The data sent from the server as stringified JSON.
+ */
 const handleEvent = (data) => {
     const event = JSON.parse(data);
     console.log(event);
@@ -241,6 +282,9 @@ const handleEvent = (data) => {
                 console.log('PUT event: ' + messagePath);
                 break;
             case 'DELETE':
+                messagePath = message.path.substring(message.path.indexOf('/') + 1);
+                updateFileSystem(fileSystemSnapshot, messagePath, '');
+                console.log('DELETE event: ' + messagePath);
                 break;
             case 'MOVE':
                 break;
@@ -255,8 +299,11 @@ const handleEvent = (data) => {
     }
 };
 
+/**
+ * Deletes the selected files from the file system object and requests the server to delete them.
+ */
 const deleteFiles = async () => {
-    const filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
+    let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
         (path) => `albums/${path}`
     );
     console.log(filePathsToDelete);
@@ -270,5 +317,12 @@ const deleteFiles = async () => {
     });
 
     const data = await resp.json();
-    console.log(data);
+    const failed = data.failed || [];
+
+    filePathsToDelete = filePathsToDelete
+        .filter((path) => !failed.includes(path))
+        .map((path) => path.substring(path.indexOf('/') + 1));
+    filePathsToDelete.forEach((path) => updateFileSystem(fileSystemSnapshot, path, ''));
+    if (filePathsToDelete.length > 0) updateFileSystemUI();
+    toggleFileSelection();
 };
