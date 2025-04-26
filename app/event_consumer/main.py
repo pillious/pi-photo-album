@@ -37,7 +37,8 @@ def main():
             events = []
             id_to_receipt_handles: dict[str, str] = {}
 
-            print(f"Received messages: {response}") # DEBUG
+            if 'Messages' in response:
+                print(f"Received messages: {response}") # DEBUG
             for sqs_message in response.get('Messages', []):
                 id_to_receipt_handles[sqs_message['MessageId']] = sqs_message['ReceiptHandle']
 

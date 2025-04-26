@@ -2,10 +2,28 @@ from typing import List, Tuple
 import boto3
 import os
 import concurrent.futures
+import time
+import functools
 
 from utils import get_aws_autorefresh_session
 from cloud_adapters.adapter import Adapter
 from cloud_adapters.exceptions import AdapterException
+
+def retry(max_retries=3, exceptions=(Exception,)):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == max_retries:
+                        raise
+                    delay = 2 ** (attempt - 1)
+                    print(f"Retry {attempt} failed with {e}, retrying in {delay:.2f} seconds...")
+                    time.sleep(delay)
+        return wrapper
+    return decorator
 
 class S3Adapter(Adapter):
     def __init__(self, bucket_name: str):
@@ -23,6 +41,7 @@ class S3Adapter(Adapter):
     def get_album(self, album_path):
         pass
 
+    @retry()
     def get(self, image_key: str) -> bytes:
         try:
             obj = self.s3_client.get_object(Bucket=self.bucket_name, Key=image_key)
@@ -30,10 +49,10 @@ class S3Adapter(Adapter):
         except Exception as e:
             AdapterException(f"Error getting image from S3: {e}")
 
-    def insert(self, image_path: str, image_key: str) -> bool:
-        print(f"Uploading {image_path} to {image_key}")
+    @retry()
+    def insert(self, image_path: str, image_key: str):
         try:
-            return self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
+            self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
     
@@ -56,12 +75,14 @@ class S3Adapter(Adapter):
 
         return success, failure
 
+    @retry()
     def remove(self, image_key: str):
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=image_key)
         except Exception as e:
             AdapterException(f"Error deleting image from S3: {e}")
 
+    @retry()
     def delete_bulk(self, image_keys: List[str]) -> Tuple[List[str], List[str]]:
         resp = self.s3_client.delete_objects(
             Bucket=self.bucket_name,
@@ -74,10 +95,13 @@ class S3Adapter(Adapter):
         print(resp)
         return success, failure
 
-
+    @retry()
     def insert_queue(self, message: str, message_group_id: str = "default"):
-        self.sqs_client.send_message(
-            QueueUrl=os.getenv('PUSH_QUEUE_URL'),
-            MessageBody=message,
-            MessageGroupId=message_group_id
-        )
+        try:
+            self.sqs_client.send_message(
+                QueueUrl=os.getenv('PUSH_QUEUE_URL'),
+                MessageBody=message,
+                MessageGroupId=message_group_id
+            )
+        except Exception as e:
+            raise AdapterException(f"Error sending message to SQS: {e}")

@@ -130,10 +130,6 @@ def upload_images():
         success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
         failed_files = failed_files + [sf[0] for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
         print(success,failure, failed_files)
-        # Push events to queue
-        # for sf in success:
-        #     message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
-        #     cloud_adapter.insert_queue(message)
 
         # Push events to queue
         message = json.dumps({"events": [{"event": "PUT", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
@@ -180,14 +176,14 @@ def delete_images():
 def receive_events():
     payload = request.json
 
-    # {'events': ['{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}']}
+    # {'events': [{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}]}
     # "newPath"
     # expected to be in order
 
     print(payload)
 
-    for e in payload['events']:
-        event = json.loads(e)
+    for event in payload['events']:
+        # event = json.loads(e)
         try: 
             match event["event"]:
                 case "PUT":
