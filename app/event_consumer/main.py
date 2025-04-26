@@ -34,18 +34,20 @@ def main():
         failed_health_checks = 0
         response = sqs_consumer.receive_messages()
         if response:
-            messages = []
+            events = []
             id_to_receipt_handles: dict[str, str] = {}
 
             print(f"Received messages: {response}") # DEBUG
             for sqs_message in response.get('Messages', []):
-                body = json.loads(sqs_message['Body'])
-                messages.append(body["Message"])
                 id_to_receipt_handles[sqs_message['MessageId']] = sqs_message['ReceiptHandle']
 
-            if messages:
+                body = json.loads(sqs_message['Body'])
+                message = json.loads(body['Message'])
+                events.extend(message['events'])
+
+            if events:
                 try:
-                    response = requests.post(f"{API_URL}/receive-events", json={"events": messages}, timeout=10)
+                    response = requests.post(f"{API_URL}/receive-events", json={"events": events}, timeout=10)
                     if response.status_code != 200:
                         raise APIStatusException(f"Status code: {response.status_code}")
                     status = response.json().get('status')

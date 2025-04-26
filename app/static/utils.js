@@ -102,3 +102,22 @@ const cyrb53 = function(str, seed = 0) {
     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
   };
+
+// Given a deeply nested object whose keys & values are all strings, this function flattens the object into a list of paths.
+const flattenObjectToPaths = (obj) => {
+    const helper = (fs, path) => {
+        let files = [];
+        const pathStr = path.join('/');
+        for (const [key, val] of Object.entries(fs)) {
+            if (typeof val === 'object') {
+                files = files.concat(helper(val, [...path, key]));
+            }
+            else {
+                files.push(pathStr + '/' + key);
+            }
+        }
+        return files;
+    };
+
+    return helper(obj, []);
+}

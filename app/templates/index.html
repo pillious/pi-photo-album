@@ -102,9 +102,10 @@
             <button>Manual Resync</button>
             <button onClick="showCreateFolderDialog()">Create Album</button>
             <button onClick="toggleFileSelection()">Select</button>
-            <button class="file-system-tools">Rename</button>
+            <!-- subcase of move -->
+            <button class="file-system-tools">Rename</button> 
             <button class="file-system-tools">Move</button>
-            <button class="file-system-tools">Delete</button>
+            <button class="file-system-tools" onClick="deleteFiles()">Delete</button>
             <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
         </main>
 

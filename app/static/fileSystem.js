@@ -2,7 +2,7 @@
 File System Logic
 */
 // {albums: {folderName: {...} | fileName: "", ...}}
-const selectedItems = { albums: {} };
+const selectedFiles = { albums: {} };
 let allowFileSelection = false;
 
 const updateFileSystemUI = () => {
@@ -172,14 +172,14 @@ const handleSelectItem = (e, path, isFile) => {
     console.log(path, isFile);
 
     if (isFile) {
-        if (e.target.checked) updateFileSystem(selectedItems, '', path);
-        else updateFileSystem(selectedItems, path, '');
+        if (e.target.checked) updateFileSystem(selectedFiles, '', path);
+        else updateFileSystem(selectedFiles, path, '');
     } else {
         const parts = path.split('/');
 
         const folders = [];
 
-        let loc = selectedItems.albums;
+        let loc = selectedFiles.albums;
         let snapshotLoc = fileSystemSnapshot.albums;
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
@@ -209,7 +209,7 @@ const handleSelectItem = (e, path, isFile) => {
         }
     }
 
-    console.log(selectedItems);
+    console.log(selectedFiles);
 };
 
 const toggleFileSelection = () => {
@@ -224,7 +224,7 @@ const toggleFileSelection = () => {
     for (const elem of fileSelectionTools) {
         elem.style.display = allowFileSelection ? 'inline' : 'none';
     }
-    if (!allowFileSelection) selectedItems.albums = {};
+    if (!allowFileSelection) selectedFiles.albums = {};
 };
 
 const handleEvent = (data) => {
@@ -253,4 +253,22 @@ const handleEvent = (data) => {
     if (event.events.length > 0) {
         updateFileSystemUI();
     }
+};
+
+const deleteFiles = async () => {
+    const filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
+        (path) => `albums/${path}`
+    );
+    console.log(filePathsToDelete);
+
+    const resp = await fetch('/delete-images', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: filePathsToDelete }),
+    });
+
+    const data = await resp.json();
+    console.log(data);
 };

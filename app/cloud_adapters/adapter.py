@@ -13,7 +13,7 @@ class Adapter(ABC):
     
     # Return: Tuple[success, failure]
     @abstractmethod
-    def insertBulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
+    def insert_bulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
         pass
 
     @abstractmethod

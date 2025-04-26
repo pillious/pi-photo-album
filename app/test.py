@@ -28,4 +28,4 @@ image_path = os.path.abspath(f"./{image_base_path}/{image_key}")
 
 # slideshow.start_slideshow("albums/nature", 250, 30, True)
 
-s3.insertQueue("TESING")
+s3.insert_queue("TESING")

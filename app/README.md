@@ -146,6 +146,6 @@ TODO
 [-] server sent events to update client with events.
 
 [-] fix heif upload
-[] fix s3 permissions to user prefix.
+[-] fix s3 permissions to user prefix.
 
 [] Uploading file spinner

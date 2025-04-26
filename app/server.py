@@ -127,19 +127,53 @@ def upload_images():
 
     if IS_ONLINE and len(saved_files) > 0:     
         # Bulk upload to cloud
-        success, failure = cloud_adapter.insertBulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
+        success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files])
         failed_files = failed_files + [sf[0] for sf in saved_files if sf[1][len(f"{globals.BASE_DIR}/"):] in failure]
         print(success,failure, failed_files)
         # Push events to queue
         # for sf in success:
         #     message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
-        #     cloud_adapter.insertQueue(message)
+        #     cloud_adapter.insert_queue(message)
+
+        # Push events to queue
+        message = json.dumps({"events": [{"event": "PUT", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
+        cloud_adapter.insert_queue(message)
+
     else:
         success = [sf[1][len(f"{globals.BASE_DIR}/"):] for sf in saved_files]
 
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
     return jsonify({"status": "ok", "failed": failed_files, "success": success})
+
+@app.route('/delete-images', methods=['POST'])
+@enforce_mime('application/json')
+def delete_images():
+    files = request.json.get('files', [])
+
+    if not files:
+        return jsonify({"status": "ok", "failed": []})
+    
+    # Local delete
+    for f in files:
+        os.remove(f"{globals.BASE_DIR}/{f}")
+
+    # Cloud delete
+    success, failed = cloud_adapter.delete_bulk(files)
+
+    # Push events to queue
+    # TODO
+    cloud_adapter.insert_queue(json.dumps({"event": "DELETE", "path": f, "sender": os.getenv('USERNAME')}))
+
+    # TODO: need to batch the events when inserting into the queue somehow.
+
+
+            # for sf in success:
+        #     message = json.dumps({"event": "PUT", "path": sf, "sender": os.getenv('USERNAME')})
+        #     cloud_adapter.insert_queue(message)
+
+
+    return jsonify({"status": "ok", "failed": failed})
 
 @app.route('/receive-events', methods=['POST'])
 @enforce_mime('application/json')
@@ -154,17 +188,21 @@ def receive_events():
 
     for e in payload['events']:
         event = json.loads(e)
-        match event["event"]:
-            case "PUT":
-                image = cloud_adapter.get(event["path"])
-                image_path = f'{globals.BASE_DIR}/{event["path"]}'
-                os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                with open(image_path, 'wb') as f:
-                    f.write(image)
-            case "DELETE":
-                continue
-            case "MOVE":
-                continue
+        try: 
+            match event["event"]:
+                case "PUT":
+                    image = cloud_adapter.get(event["path"])
+                    image_path = f'{globals.BASE_DIR}/{event["path"]}'
+                    os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                    with open(image_path, 'wb') as f:
+                        f.write(image)
+                case "DELETE":
+                    continue
+                case "MOVE":
+                    continue
+        except Exception as e:
+            print(f"Error processing event: {e}")
+            continue
 
     event_announcer.announce(json.dumps(payload))
             

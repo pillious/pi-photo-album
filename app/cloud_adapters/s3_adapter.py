@@ -37,7 +37,7 @@ class S3Adapter(Adapter):
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
     
-    def insertBulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
+    def insert_bulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
         success = []
         failure = []
         future_map = {}
@@ -62,8 +62,20 @@ class S3Adapter(Adapter):
         except Exception as e:
             AdapterException(f"Error deleting image from S3: {e}")
 
+    def delete_bulk(self, image_keys: List[str]) -> Tuple[List[str], List[str]]:
+        resp = self.s3_client.delete_objects(
+            Bucket=self.bucket_name,
+            Delete={
+                'Objects': [{'Key': k} for k in image_keys]
+            } 
+        )
+        success = [item['Key'] for item in resp.get('Deleted', [])]
+        failure = [item['Key'] for item in resp.get('Errors', [])]
+        print(resp)
+        return success, failure
 
-    def insertQueue(self, message: str, message_group_id: str = "default"):
+
+    def insert_queue(self, message: str, message_group_id: str = "default"):
         self.sqs_client.send_message(
             QueueUrl=os.getenv('PUSH_QUEUE_URL'),
             MessageBody=message,
