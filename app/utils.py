@@ -6,6 +6,7 @@ import boto3
 from botocore.credentials import RefreshableCredentials
 from botocore.session import get_session
 
+import globals
 
 ### General Utils
 def clamp(val, min, max):
@@ -74,14 +75,6 @@ def get_file_structure(root_dir: str):
         parent[folders[-1]] = subdir
     return dir_dict
 
-def get_default_file_structure(username: str):
-    return {
-        "albums": {
-            username: {},
-            "Shared": {}
-        }
-    }
-
 def partial_dict_merge(d: dict, u: dict): 
     """
     Performs a deep merge on `d` to include all keys from `u` that are not already in `d`.
@@ -92,6 +85,25 @@ def partial_dict_merge(d: dict, u: dict):
         elif k not in d:
             d[k] = v
     return d
+
+### App Specific Utils
+def get_default_file_structure(username: str):
+    return {
+        "albums": {
+            username: {},
+            "Shared": {}
+        }
+    }
+
+def is_file_owner(file_path: str):
+    """
+    Check if the file path can be accessed by the current user.
+
+    file_path can optionally include the prefix "albums/".
+    """
+    if file_path.startswith('albums/'):
+        file_path = file_path[7:]
+    return file_path.split('/', 1)[0] in globals.ALLOWED_PREFIXES
 
 ### AWS Session Utils
 def get_aws_autorefresh_session(aws_role_arn, session_name):

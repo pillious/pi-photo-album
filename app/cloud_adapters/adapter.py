@@ -17,7 +17,7 @@ class Adapter(ABC):
         pass
 
     @abstractmethod
-    def remove(self, image_key: str) -> bool:
+    def delete(self, image_key: str) -> bool:
         pass
 
     # @abstractmethod

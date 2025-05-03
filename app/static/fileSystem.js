@@ -3,7 +3,11 @@ File System Logic
 */
 // {albums: {folderName: {...} | fileName: "", ...}}
 const selectedFiles = { albums: {} };
+// {albums: {folderName: {...}}}
+const selectedFolders = { albums: {} };
+
 let allowFileSelection = false;
+let userSelectionCount = 0;
 
 /**
  * Creates the file system UI based on the file system object.
@@ -63,7 +67,9 @@ const updateFileSystemUI = () => {
                 fileLi.setAttribute('data-album-path', currPath);
                 fileName = document.createElement('span');
                 fileName.innerHTML = key.substring(key.indexOf('.') + 1);
-                selectItem.onchange = (e) => handleSelectItem(e, currPath, true);
+                selectItem.onchange = (e) => {
+                    handleSelectItem(e, currPath, true);
+                };
                 fileLi.appendChild(selectItem);
                 fileLi.appendChild(fileName);
 
@@ -74,43 +80,9 @@ const updateFileSystemUI = () => {
 };
 
 /**
- * Shows the create folder dialog.
- * The dialog is populated with the available album paths.
- */
-const showCreateFolderDialog = () => {
-    document.getElementById('create-folder-dialog').showModal();
-    document.querySelector('.overlay').style.display = 'block';
-
-    const albumPaths = getAlbumPaths(fileSystemSnapshot, false).map(
-        // Remove the leading 'albums/' and add a trailing '/'
-        (path) => path.substring(path.indexOf('/') + 1) + '/'
-    );
-
-    const select = document.getElementById('create-folder-dialog').querySelector('select');
-    select.innerHTML = select.firstElementChild.outerHTML;
-    for (const path of albumPaths) {
-        const option = document.createElement('option');
-        option.value = path;
-        option.innerHTML = path;
-        select.appendChild(option);
-    }
-};
-
-/**
- * Hides the create folder dialog and resets the form.
- */
-const hideCreateFolderDialog = () => {
-    document.getElementById('create-folder-dialog').close();
-    document.querySelector('.overlay').style.display = 'none';
-
-    const form = document.getElementById('create-folder-dialog').querySelector('form');
-    form.reset();
-};
-
-/**
  * Creates a new folder.
- * 
- * @param {Event} e 
+ *
+ * @param {Event} e
  */
 const handleCreateFolder = (e) => {
     e.preventDefault();
@@ -135,6 +107,91 @@ const handleCreateFolder = (e) => {
     updateFileStagingUI();
 
     hideCreateFolderDialog();
+};
+
+const handleMoveFiles = async (e) => {
+    e.preventDefault();
+
+    const fields = new FormData(e.target);
+    const folderPath = fields.get('folderPath');
+
+    console.log(folderPath);
+    console.log(selectedFolders);
+
+    if (folderPath === '') {
+        alert('Folder path cannot be empty');
+        return;
+    }
+
+    const selectedFilePaths = flattenObjectToPaths(selectedFiles.albums);
+    const prefixReplace = {}; // folder path prefixes to replace {oldPrefix: newPrefix}
+
+    // Generates the folder path prefixes to replace
+    const path = [];
+    const loc = [selectedFolders.albums];
+    while (loc.length > 0) {
+        const currLoc = loc.pop();
+        for (const [key, val] of Object.entries(currLoc)) {
+            if (Object.entries(val).length === 0) {
+                path.push(key);
+                prefixReplace[path.join('/')] = folderPath + key;
+            } else {
+                path.push(key);
+                loc.push(val);
+            }
+        }
+    }
+    console.log(selectedFilePaths);
+    console.log(prefixReplace);
+
+    // Creates the path pairs: {oldPath: str, newPath: str}[]
+    const pathPairs = selectedFilePaths.map((path) => {
+        for (const [key, val] of Object.entries(prefixReplace)) {
+            if (path.startsWith(key)) {
+                return {
+                    oldPath: `albums/${path}`,
+                    newPath: `albums/${val}${path.substring(key.length)}`,
+                };
+            }
+        }
+        const fileName = path.substring(path.lastIndexOf('/') + 1);
+        return {
+            oldPath: `albums/${path}`,
+            newPath: `albums/${folderPath}/${fileName}`,
+        };
+    });
+    console.log(pathPairs);
+
+    if (pathPairs.length > 0) {
+        const resp = await fetch('/move-images', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ files: pathPairs }),
+        });
+
+        const data = await resp.json();
+        const failedOldPaths = (data.failed || []).map((path) => path[0]);
+
+        console.log(data);
+
+        pathPairs
+            .filter((pair) => !failedOldPaths.includes(pair.oldPath))
+            .forEach((pair) =>
+                updateFileSystem(
+                    fileSystemSnapshot,
+                    removeAlbumsPrefix(pair.oldPath),
+                    removeAlbumsPrefix(pair.newPath)
+                )
+            );
+
+        // TODO: alert the user if any files failed to move
+        updateFileSystemUI();
+    }
+
+    toggleFileSelection();
+    hideMoveFilesDialog();
 };
 
 /**
@@ -171,22 +228,25 @@ const updateFileSystem = (fileSystem, currFilePath, newFilePath) => {
         // Delete
         const currFilePathParts = currFilePath.split('/');
         const currFileName = currFilePathParts.pop();
-        let loc = fileSystem.albums;
+        let loc = [fileSystem.albums];
         for (const part of currFilePathParts) {
-            loc = loc[part];
+            loc.push(loc[loc.length - 1][part]);
         }
-        delete loc[currFileName];
+        delete loc[loc.length - 1][currFileName];
+
+        // Delete empty folders
+        for (let i = loc.length - 2; i >= 0; i--) {
+            const part = currFilePathParts[i];
+            if (Object.keys(loc[i + 1]).length === 0) {
+                delete loc[i][part];
+            } else {
+                break;
+            }
+        }
     } else {
         // Move
-        const currFilePathParts = currFilePath.split('/');
-        const newFilePathParts = newFilePath.split('/');
-        const currFileName = currFilePathParts.pop();
-        let loc = fileSystem.albums;
-        for (const part of currFilePathParts) {
-            loc = loc[part];
-        }
-        loc[newFilePathParts[newFilePathParts.length - 1]] = loc[currFileName];
-        delete loc[currFileName];
+        updateFileSystem(fileSystem, '', newFilePath);
+        updateFileSystem(fileSystem, currFilePath, '');
     }
 };
 
@@ -198,33 +258,51 @@ const updateFileSystem = (fileSystem, currFilePath, newFilePath) => {
  * @param {Boolean} isFile
  */
 const handleSelectItem = (e, path, isFile) => {
-    console.log(path, isFile);
-
     if (isFile) {
         if (e.target.checked) updateFileSystem(selectedFiles, '', path);
         else updateFileSystem(selectedFiles, path, '');
     } else {
+        // TODO: can this be cleanup up a bit?
         const parts = path.split('/');
 
-        const folders = [];
-
-        let loc = selectedFiles.albums;
+        let locFiles = [selectedFiles.albums];
+        let locFolders = [selectedFolders.albums];
         let snapshotLoc = fileSystemSnapshot.albums;
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
-            if (!(part in loc)) {
-                loc[part] = {};
-            }
-            loc = loc[part];
+            if (!(part in locFiles[i])) locFiles[i][part] = {};
+            if (!(part in locFolders[i])) locFolders[i][part] = {};
+            locFiles.push(locFiles[i][part]);
+            locFolders.push(locFolders[i][part]);
             snapshotLoc = snapshotLoc[part];
-            folders;
-            console.log(loc, snapshotLoc);
         }
 
         if (e.target.checked) {
-            loc[parts[parts.length - 1]] = structuredClone(snapshotLoc[parts[parts.length - 1]]);
+            locFiles[locFiles.length - 1][parts[parts.length - 1]] = structuredClone(
+                snapshotLoc[parts[parts.length - 1]]
+            );
+            locFolders[locFolders.length - 1][parts[parts.length - 1]] = {};
         } else {
-            delete loc[parts[parts.length - 1]];
+            delete locFiles[locFiles.length - 1][parts[parts.length - 1]];
+            delete locFolders[locFolders.length - 1][parts[parts.length - 1]];
+
+            // Delete empty folders
+            for (let i = locFiles.length - 2; i >= 0; i--) {
+                const part = parts[i];
+                if (Object.keys(locFiles[i + 1]).length === 0) {
+                    delete locFiles[i][part];
+                } else {
+                    break;
+                }
+            }
+            for (let i = locFolders.length - 2; i >= 0; i--) {
+                const part = parts[i];
+                if (Object.keys(locFolders[i + 1]).length === 0) {
+                    delete locFolders[i][part];
+                } else {
+                    break;
+                }
+            }
         }
 
         // Propagate change to children checkboxes
@@ -232,21 +310,26 @@ const handleSelectItem = (e, path, isFile) => {
         for (const child of children) {
             const checkbox = child.querySelector('input[type="checkbox"]');
             if (checkbox) {
+                if (checkbox.checked && !checkbox.disabled) setRenameToolEnabledState(-1);
                 checkbox.checked = e.target.checked;
                 checkbox.disabled = e.target.checked;
             }
         }
     }
 
-    console.log(selectedFiles);
+    setRenameToolEnabledState(e.target.checked ? 1 : -1);
 };
 
 /**
- * Toggles the file selection mode. When toggled off, the selected files are cleared.
+ * Toggles the file selection mode.
+ * When toggled off, the selected files are cleared.
  */
 const toggleFileSelection = () => {
     allowFileSelection = !allowFileSelection;
-    if (!allowFileSelection) selectedFiles.albums = {};
+    if (!allowFileSelection) {
+        selectedFiles.albums = {};
+        setRenameToolEnabledState(-userSelectionCount);
+    }
     const selectItems = document
         .querySelector('[data-fs-tree-]')
         .querySelectorAll('input[type="checkbox"]');
@@ -264,6 +347,16 @@ const toggleFileSelection = () => {
 };
 
 /**
+ * Handles the enabled/disabled state of the rename tool based on the user selection count.
+ *
+ * @param {number} change Update the user selection count by this amount.
+ */
+const setRenameToolEnabledState = (change) => {
+    userSelectionCount += change;
+    document.getElementById('file-system-tools-rename').disabled = userSelectionCount > 1;
+};
+
+/**
  * Handles events sent from the server and updates the file system object.
  *
  * @param {string} data The data sent from the server as stringified JSON.
@@ -272,17 +365,15 @@ const handleEvent = (data) => {
     const event = JSON.parse(data);
     console.log(event);
 
-    for (const e of event.events) {
-        const message = JSON.parse(e);
+    for (const message of event.events) {
         switch (message.event) {
             case 'PUT':
-                // remove the leading 'albums/' from the path
-                messagePath = message.path.substring(message.path.indexOf('/') + 1);
+                messagePath = removeAlbumsPrefix(message.path);
                 updateFileSystem(fileSystemSnapshot, '', messagePath);
                 console.log('PUT event: ' + messagePath);
                 break;
             case 'DELETE':
-                messagePath = message.path.substring(message.path.indexOf('/') + 1);
+                messagePath = removeAlbumsPrefix(message.path);
                 updateFileSystem(fileSystemSnapshot, messagePath, '');
                 console.log('DELETE event: ' + messagePath);
                 break;
@@ -306,7 +397,6 @@ const deleteFiles = async () => {
     let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
         (path) => `albums/${path}`
     );
-    console.log(filePathsToDelete);
 
     const resp = await fetch('/delete-images', {
         method: 'POST',
@@ -321,8 +411,7 @@ const deleteFiles = async () => {
 
     filePathsToDelete = filePathsToDelete
         .filter((path) => !failed.includes(path))
-        .map((path) => path.substring(path.indexOf('/') + 1));
-    filePathsToDelete.forEach((path) => updateFileSystem(fileSystemSnapshot, path, ''));
+        .forEach((path) => updateFileSystem(fileSystemSnapshot, removeAlbumsPrefix(path), ''));
     if (filePathsToDelete.length > 0) updateFileSystemUI();
     toggleFileSelection();
 };

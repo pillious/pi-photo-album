@@ -38,6 +38,8 @@ def index():
     settings = slideshow.load_settings()
     default_file_structure = utils.get_default_file_structure(os.getenv('USERNAME'))
     file_structure = utils.get_file_structure(f"{globals.BASE_DIR}/albums")
+
+    # Ensure that the default file structure is always present.
     file_structure = utils.partial_dict_merge(file_structure, default_file_structure)
     return render_template('index.html', settings=settings, fileStructure=file_structure)
 
@@ -105,7 +107,7 @@ def upload_images():
             guid = file_ids.get(image.filename, "") 
             image_name = f'{uuid.uuid4()}.{secure_filename(image.filename)}'
             file_extension = utils.get_file_extension(image_name)
-            if file_extension not in app.config['UPLOAD_EXTENSIONS'] or album_path.split('/')[0] not in globals.ALLOWED_PREFIXES:
+            if file_extension not in app.config['UPLOAD_EXTENSIONS'] or not utils.is_file_owner(album_path):
                 failed_files.append(guid)
                 continue
 
@@ -161,37 +163,90 @@ def delete_images():
 
     return jsonify({"status": "ok", "failed": failed})
 
+@app.route('/move-images', methods=['POST'])
+@enforce_mime('application/json')
+def move_images():
+    files = request.json.get('files', [])
+    if not files:
+        return jsonify({"status": "ok", "failed": []})
+
+    for file in files:
+        if not utils.is_file_owner(file['oldPath']) or not utils.is_file_owner(file['newPath']):
+            print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")
+            continue
+
+        print(f"{globals.BASE_DIR}/{file['oldPath']}", f"{globals.BASE_DIR}/{file['newPath']}")
+        print("-------------")
+        new_path = f"{globals.BASE_DIR}/{file['newPath']}"
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        os.rename(f"{globals.BASE_DIR}/{file['oldPath']}", new_path)
+
+    image_key_pairs = [(f['oldPath'], f['newPath']) for f in files]
+    success, failed = cloud_adapter.move_bulk(image_key_pairs)
+    print(success, failed)
+
+    if success:
+        message = json.dumps({"events": [{"event": "MOVE", "path": sf[0], "newPath": sf[1]} for sf in success], "sender": os.getenv('USERNAME')})
+        cloud_adapter.insert_queue(message)
+
+    # failed: List[(old_path, new_path)]
+    return jsonify({"status": "ok", "failed": []})
+
 @app.route('/receive-events', methods=['POST'])
 @enforce_mime('application/json')
 def receive_events():
     payload = request.json
+    processed_events = []
+    print(payload)
 
     # {'events': [{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}]}
     # "newPath"
     # expected to be in order
 
-    print(payload)
-
     for event in payload['events']:
-        # event = json.loads(e)
         try: 
             match event["event"]:
                 case "PUT":
-                    image = cloud_adapter.get(event["path"])
-                    image_path = f'{globals.BASE_DIR}/{event["path"]}'
-                    os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                    with open(image_path, 'wb') as f:
-                        f.write(image)
+                    print(f"EVENT: Creating {event['path']}")
+                    path, abs_path = event["path"], f"{globals.BASE_DIR}/{event['path']}"
+                    if utils.is_file_owner(path):
+                        image = cloud_adapter.get(path)
+                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+                        with open(abs_path, 'wb') as f:
+                            f.write(image)
                 case "DELETE":
-                    continue
+                    print(f"EVENT: Deleting {event['path']}")
+                    os.remove(f"{globals.BASE_DIR}/{event['path']}")
                 case "MOVE":
-                    continue
+                    old_path, abs_old_path = event['path'], f"{globals.BASE_DIR}/{event['path']}"
+                    new_path, abs_new_path = event['newPath'], f"{globals.BASE_DIR}/{event['newPath']}"
+                    print(f"EVENT: Moving {event['path']} to {event['newPath']}")
+                    if utils.is_file_owner(old_path) and utils.is_file_owner(new_path):
+                        os.makedirs(os.path.dirname(abs_new_path), exist_ok=True)
+                        os.rename(abs_old_path, abs_new_path)
+                    elif not utils.is_file_owner(old_path):
+                        # file is moved from a private folder, download it from the cloud
+                        image = cloud_adapter.get(new_path)
+                        os.makedirs(os.path.dirname(abs_new_path), exist_ok=True)
+                        with open(abs_new_path, 'wb') as f:
+                            f.write(image)
+                        event["event"] = "PUT"
+                        event["path"] = new_path
+                        del event["newPath"]
+                    elif not utils.is_file_owner(new_path):
+                        # file is moved to a private folder, delete the old file.
+                        os.remove(abs_old_path)
+                        event["event"] = "DELETE"
+                        event["path"] = old_path
+                        del event["newPath"]
+                # TODO: handle empty folders after move.
+                # can probably be some utility function that takes a path and goes up the path chain.
+            processed_events.append(event)
         except Exception as e:
             print(f"Error processing event: {e}")
             continue
 
-    event_announcer.announce(json.dumps(payload))
-            
+    event_announcer.announce(json.dumps({"events": processed_events, "sender": os.getenv('USERNAME')}))
     return jsonify({"status": "ok"})
 
 @app.route('/stream-events', methods=['GET'])

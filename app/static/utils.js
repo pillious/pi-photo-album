@@ -83,27 +83,41 @@ const secureFilename = (filename) => {
     return filename;
 };
 
-/*
-    cyrb53 (c) 2018 bryc (github.com/bryc)
-    License: Public domain (or MIT if needed). Attribution appreciated.
-    A fast and simple 53-bit string hash function with decent collision resistance.
-    Largely inspired by MurmurHash2/3, but with a focus on speed/simplicity.
-*/
-const cyrb53 = function(str, seed = 0) {
-    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for(let i = 0, ch; i < str.length; i++) {
-      ch = str.charCodeAt(i);
-      h1 = Math.imul(h1 ^ ch, 2654435761);
-      h2 = Math.imul(h2 ^ ch, 1597334677);
+/**
+ *
+ *  A fast and simple 53-bit string hash function with decent collision resistance.
+ *
+ *  cyrb53 (c) 2018 bryc (github.com/bryc)
+ *
+ *  License: Public domain (or MIT if needed). Attribution appreciated.
+ *
+ *  Largely inspired by MurmurHash2/3, but with a focus on speed/simplicity.
+ *
+ * @param {string} str
+ * @param {number} seed
+ * @returns {number} A 53-bit hash value.
+ */
+const cyrb53 = function (str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed,
+        h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    h1  = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-  };
+};
 
-// Given a deeply nested object whose keys & values are all strings, this function flattens the object into a list of paths.
+/**
+ * Given a deeply nested object this function flattens the object into a list of paths.
+ *
+ * @param {Object<string, string | Object>} obj deeply nested object whose keys & values are all strings
+ * @returns {Array<string>} a list of paths to all the files in the object
+ */
 const flattenObjectToPaths = (obj) => {
     const helper = (fs, path) => {
         let files = [];
@@ -111,8 +125,7 @@ const flattenObjectToPaths = (obj) => {
         for (const [key, val] of Object.entries(fs)) {
             if (typeof val === 'object') {
                 files = files.concat(helper(val, [...path, key]));
-            }
-            else {
+            } else {
                 files.push(pathStr + '/' + key);
             }
         }
@@ -120,4 +133,25 @@ const flattenObjectToPaths = (obj) => {
     };
 
     return helper(obj, []);
-}
+};
+
+/**
+ * Removes the leading 'albums/' prefix from a path string.
+ *
+ * @param {string} pathStr a path string that may or may not start with 'albums/'
+ * @returns the pathStr without the leading 'albums/' prefix
+ */
+const removeAlbumsPrefix = (pathStr) => {
+    if (pathStr.startsWith('albums/')) {
+        return pathStr.substring(7);
+    }
+    return pathStr;
+};
+
+/**
+ * Removes the leading 'albums/' prefix from each path in a list of paths.
+ *
+ * @param {Array} paths an array of path strings that may or may not start with 'albums/'
+ * @returns an array of path strings without the leading 'albums/' prefix
+ */
+const removeAlbumsPrefixes = (paths) => paths.map((path) => removeAlbumsPrefix(path));

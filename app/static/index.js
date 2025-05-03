@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateFileSystemUI();
     updateFileStagingUI();
 
+    // Settings section event listeners
     document.getElementById('blend').addEventListener('input', (e) => {
         document.getElementById('blend-current-value').innerHTML = e.target.value;
     });
@@ -28,26 +29,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('speed').addEventListener('input', (e) => {
         document.getElementById('speed-current-value').innerHTML = e.target.value;
     });
-
     document
         .getElementById('image-upload-btn')
         .addEventListener('click', () =>
             document.getElementById('image-upload-input-hidden').click()
         );
 
+    // To handle cases of `close` triggered by clicking out or pressing ESC
     document.getElementById('create-folder-dialog').addEventListener('close', () => {
-        // To handle case of `close` triggered by clicking out or pressing ESC
+        document.querySelector('.overlay').style.display = 'none';
+    });
+    document.getElementById('move-files-dialog').addEventListener('cancel', () => {
         document.querySelector('.overlay').style.display = 'none';
     });
 
-    const eventStream = new EventSource('/stream-events')
+    // Sets up listener for Server-Sent Events
+    const eventStream = new EventSource('/stream-events');
     eventStream.onmessage = (e) => {
-        if (e.data === "connected") {
-            console.log("DEBUG: Connection established to the event stream");
-            return
+        if (e.data === 'connected') {
+            console.log('DEBUG: Connection established to the event stream');
+            return;
         }
         // We don't want to process the connection confirmation message.
-        handleEvent(e.data)
+        handleEvent(e.data);
     };
     // eventStream.onerror = (e) => {
     //     console.error("ERROR: Event stream error", e);

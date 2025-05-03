@@ -41,7 +41,8 @@ def lambda_handler(event, context):
             events_by_group_id = defaultdict(list)
             if 'events' in payload:
                 for event in payload['events']:
-                    message_group_id, message = process_event(event)
+                    message = process_event(event)
+                    message_group_id = get_message_group_id(event)
                     events_by_group_id[message_group_id].append(message)
                 for message_group_id, events in events_by_group_id.items():
                     message_attributes = {
@@ -74,13 +75,32 @@ def process_event(event):
     if 'newPath' in event:
         message['newPath'] = event['newPath']
 
-    message_group_id = get_message_group_id(event['path'])
-    return message_group_id, message
+    return message
 
-def get_message_group_id(path: str):
+def get_message_group_id(event):
+    if 'newPath' in event:
+        new_path_prefix = get_path_prefix(event['newPath'])
+        if new_path_prefix == 'Shared':
+            return new_path_prefix
+    return get_path_prefix(event['path'])
+
+def get_path_prefix(path):
     if path.startswith('albums/'):
         path = path[len('albums/'):]
     return path.split('/')[0]
+
+def get_message_attributes(event):
+    message_attributes = {
+        'messageGroupId': {
+            'DataType': 'String',
+            'StringValue': get_message_group_id(event)
+        },
+        'sender': {
+            'DataType': 'String',
+            'StringValue': event['sender']
+        }
+    }
+    return message_attributes
 
 def publish(sns_client, message: str, message_group_id: str, message_attributes):
     print(message, message_group_id, message_attributes)

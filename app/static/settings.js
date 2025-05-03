@@ -56,10 +56,8 @@ const updateSettingsUI = (newState) => {
     // Populate the album select dropdown
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
-    // Remove the leading 'albums/'
-    const albumPaths = getAlbumPaths(fileSystemSnapshot, true).map((path) =>
-        path.substring(path.indexOf('/') + 1)
-    );
+    
+    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, true))
     for (const path of albumPaths) {
         const option = document.createElement('option');
         option.value = path;

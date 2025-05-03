@@ -18,6 +18,7 @@
         <script type="text/javascript" src="/static/imageUploader.js"></script>
         <script type="text/javascript" src="/static/fileSystem.js"></script>
         <script type="text/javascript" src="/static/utils.js"></script>
+        <script type="text/javascript" src="/static/dialogs.js"></script>
     </head>
     <body>
         <main>
@@ -103,8 +104,8 @@
             <button onClick="showCreateFolderDialog()">Create Album</button>
             <button onClick="toggleFileSelection()">Select</button>
             <!-- subcase of move -->
-            <button class="file-system-tools">Rename</button> 
-            <button class="file-system-tools">Move</button>
+            <button class="file-system-tools" id="file-system-tools-rename">Rename</button> 
+            <button class="file-system-tools" onClick="showMoveFilesDialog()">Move</button>
             <button class="file-system-tools" onClick="deleteFiles()">Delete</button>
             <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
         </main>
@@ -123,6 +124,18 @@
                 </div>
             </form>
         </dialog>
+
+        <dialog id="move-files-dialog">
+            <form onsubmit="handleMoveFiles(event)">
+                <p>Move to:</p>
+                <select name="folderPath">
+                    <option value="" disabled>-- Select an Album --</option>
+                </select>
+                <div>
+                    <button type="button" onclick="hideMoveFilesDialog()">Cancel</button>
+                    <button type="submit">Confirm</button>
+                </div>
+            </form>
         
     </body>
 </html>

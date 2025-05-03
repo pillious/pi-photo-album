@@ -55,7 +55,27 @@ class S3Adapter(Adapter):
             self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
-    
+
+    @retry()
+    def move(self, src_key: str, dest_key: str):
+        try:
+            response = self.s3_client.copy_object(
+                Bucket=self.bucket_name,
+                CopySource={'Bucket': self.bucket_name, 'Key': src_key},
+                Key=dest_key
+            )
+            print(response)
+            self.delete(src_key)
+        except Exception as e:
+            raise AdapterException(f"Error moving image in S3: {e}")
+
+    @retry()
+    def delete(self, image_key: str):
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=image_key)
+        except Exception as e:
+            AdapterException(f"Error deleting image from S3: {e}")
+
     def insert_bulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
         success = []
         failure = []
@@ -75,12 +95,24 @@ class S3Adapter(Adapter):
 
         return success, failure
 
-    @retry()
-    def remove(self, image_key: str):
-        try:
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=image_key)
-        except Exception as e:
-            AdapterException(f"Error deleting image from S3: {e}")
+    def move_bulk(self, image_key_pairs: List[Tuple[str, str]]) -> Tuple[List[str], List[str]]:
+        success = []
+        failure = []
+        future_map = {}
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for src_key, dest_key in image_key_pairs:
+                future = executor.submit(self.move, src_key, dest_key)
+                future_map[future] = (src_key, dest_key)
+
+        for future, key_pair in future_map.items():
+            try:
+                _ = future.result() # This will raise an exception if self.insert() throws exception
+                success.append(key_pair)
+            except Exception as e:
+                print(e)
+                failure.append(key_pair)
+
+        return success, failure
 
     @retry()
     def delete_bulk(self, image_keys: List[str]) -> Tuple[List[str], List[str]]:

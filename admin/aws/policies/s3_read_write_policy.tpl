@@ -23,7 +23,8 @@
             "Action": [
                 "s3:GetObject",
                 "s3:PutObject",
-                "s3:DeleteObject"
+                "s3:DeleteObject",
+                "s3:CopyObject"
             ],
             "Resource": [
                 "${bucket_arn}/albums/${username}/*",

@@ -25,12 +25,8 @@ const updateFileStagingUI = () => {
     const stagingList = document.getElementById('image-staging-list');
     stagingList.innerHTML = '';
 
-    const albumPaths = getAlbumPaths(fileSystemSnapshot, false).map(
-        (path) => path.substring(path.indexOf('/') + 1) // Remove the leading 'albums/'
-    );
-
     console.log(filesInStaging);
-
+    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false));
     for (const [id, { album, fileName }] of Object.entries(filesInStaging)) {
         const listItem = createStagedFileUI(fileName, album, albumPaths);
         listItem.querySelector('.staging-remove-btn').onclick = () => {
@@ -145,10 +141,10 @@ const handleImagesUpload = async (e) => {
                 .map((id) => filesInStaging[id].fileName)
                 .join('\n')}`
         );
-        
+
         // Update the file system snapshot with the new files
         for (const success of respData.success ?? []) {
-            const filePath = success.substring(success.indexOf('/') + 1);
+            const filePath = removeAlbumsPrefix(success);
             updateFileSystem(fileSystemSnapshot, '', filePath);
         }
 
