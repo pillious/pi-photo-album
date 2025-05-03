@@ -367,21 +367,29 @@ const handleEvent = (data) => {
 
     for (const message of event.events) {
         switch (message.event) {
-            case 'PUT':
-                messagePath = removeAlbumsPrefix(message.path);
-                updateFileSystem(fileSystemSnapshot, '', messagePath);
-                console.log('PUT event: ' + messagePath);
+            case 'PUT': {
+                const path = removeAlbumsPrefix(message.path);
+                updateFileSystem(fileSystemSnapshot, '', path);
+                console.log('PUT event: ' + path);
                 break;
-            case 'DELETE':
-                messagePath = removeAlbumsPrefix(message.path);
-                updateFileSystem(fileSystemSnapshot, messagePath, '');
-                console.log('DELETE event: ' + messagePath);
+            }
+            case 'DELETE': {
+                const path = removeAlbumsPrefix(message.path);
+                updateFileSystem(fileSystemSnapshot, path, '');
+                console.log('DELETE event: ' + path);
                 break;
-            case 'MOVE':
+            }
+            case 'MOVE': {
+                const oldPath = removeAlbumsPrefix(message.path);
+                const newPath = removeAlbumsPrefix(message.newPath);
+                updateFileSystem(fileSystemSnapshot, oldPath, newPath);
+                console.log('MOVE event: ' + oldPath + ' -> ' + newPath);
                 break;
-            default:
-                console.log('Unknown event type: ' + message.event);
+            }
+            default: {
+                console.log('UNKNOWN event: ' + message.event);
                 break;
+            }
         }
     }
 
@@ -409,9 +417,10 @@ const deleteFiles = async () => {
     const data = await resp.json();
     const failed = data.failed || [];
 
-    filePathsToDelete = filePathsToDelete
-        .filter((path) => !failed.includes(path))
-        .forEach((path) => updateFileSystem(fileSystemSnapshot, removeAlbumsPrefix(path), ''));
+    filePathsToDelete = filePathsToDelete.filter((path) => !failed.includes(path));
+    filePathsToDelete.forEach((path) =>
+        updateFileSystem(fileSystemSnapshot, removeAlbumsPrefix(path), '')
+    );
     if (filePathsToDelete.length > 0) updateFileSystemUI();
     toggleFileSelection();
 };
