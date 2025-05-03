@@ -38,8 +38,11 @@ const updateFileSystemUI = () => {
                 folderLi.setAttribute('data-album-path', currPath);
                 const folderName = document.createElement('span');
                 folderName.innerHTML = key;
-                selectItem.onchange = (e) => handleSelectItem(e, currPath, false);
-                folderLi.appendChild(selectItem);
+                if (parent !== fsTreeRoot) {
+                    // Don't allow selection of top level folders
+                    selectItem.onchange = (e) => handleSelectItem(e, currPath, false);
+                    folderLi.appendChild(selectItem);
+                }
                 folderLi.appendChild(folderName);
                 parent.appendChild(folderLi);
 
@@ -444,9 +447,9 @@ const handleRenameFile = async (e) => {
     let pathPairs = [];
     if (Object.keys(selectedFolders.albums).length === 0) {
         // Case: renaming a single file
-        const idx = selectedFilePaths[0].lastIndexOf('/') + 1
+        const idx = selectedFilePaths[0].lastIndexOf('/') + 1;
         const folderPath = selectedFilePaths[0].substring(0, idx);
-        const fileId = selectedFilePaths[0].substring(idx+1).split('.', 1)[0];
+        const fileId = selectedFilePaths[0].substring(idx + 1).split('.', 1)[0];
         const fileExt = getFileExtension(selectedFilePaths[0]);
         pathPairs.push({
             oldPath: `albums/${selectedFilePaths[0]}`,
