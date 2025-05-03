@@ -35,13 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('image-upload-input-hidden').click()
         );
 
-    // To handle cases of `close` triggered by clicking out or pressing ESC
-    document.getElementById('create-folder-dialog').addEventListener('close', () => {
-        document.querySelector('.overlay').style.display = 'none';
-    });
-    document.getElementById('move-files-dialog').addEventListener('cancel', () => {
-        document.querySelector('.overlay').style.display = 'none';
-    });
+    // To handle cases of dialog `cancel` triggered by pressing ESC
+    document.querySelectorAll('dialog').forEach((dialog) =>
+        dialog.addEventListener('cancel', hideOverlay)
+    );
 
     // Sets up listener for Server-Sent Events
     const eventStream = new EventSource('/stream-events');

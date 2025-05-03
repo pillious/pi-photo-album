@@ -4,7 +4,7 @@
  */
 const showCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').showModal();
-    document.querySelector('.overlay').style.display = 'block';
+    showOverlay();
 
     const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false))
 
@@ -23,7 +23,7 @@ const showCreateFolderDialog = () => {
  */
 const hideCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').close();
-    document.querySelector('.overlay').style.display = 'none';
+    hideOverlay();
 
     const form = document.getElementById('create-folder-dialog').querySelector('form');
     form.reset();
@@ -35,7 +35,7 @@ const hideCreateFolderDialog = () => {
  */
 const showMoveFilesDialog = () => {
     document.getElementById('move-files-dialog').showModal();
-    document.querySelector('.overlay').style.display = 'block';
+    showOverlay();
     
     const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false))
 
@@ -54,8 +54,38 @@ const showMoveFilesDialog = () => {
  */
 const hideMoveFilesDialog = () => {
     document.getElementById('move-files-dialog').close();
-    document.querySelector('.overlay').style.display = 'none';
+    hideOverlay();
 
     const form = document.getElementById('move-files-dialog').querySelector('form');
     form.reset();
+}
+
+/**
+ * Shows the rename file dialog.
+ */
+const showRenameFileDialog = () => {
+    document.getElementById('rename-file-dialog').showModal();
+    showOverlay();
+
+    const form = document.getElementById('rename-file-dialog').querySelector('form');
+    form.reset();
+}
+
+/**
+ * Hides the rename file dialog and resets the form.
+ */
+const hideRenameFileDialog = () => {
+    document.getElementById('rename-file-dialog').close();
+    hideOverlay();
+
+    const form = document.getElementById('rename-file-dialog').querySelector('form');
+    form.reset();
+}
+
+const showOverlay = () => {
+    document.querySelector('.overlay').style.display = 'block';
+}
+
+const hideOverlay = () => {
+    document.querySelector('.overlay').style.display = 'none';
 }

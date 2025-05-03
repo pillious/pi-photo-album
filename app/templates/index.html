@@ -104,13 +104,14 @@
             <button onClick="showCreateFolderDialog()">Create Album</button>
             <button onClick="toggleFileSelection()">Select</button>
             <!-- subcase of move -->
-            <button class="file-system-tools" id="file-system-tools-rename">Rename</button> 
+            <button class="file-system-tools" id="file-system-tools-rename" onClick="showRenameFileDialog()">Rename</button> 
             <button class="file-system-tools" onClick="showMoveFilesDialog()">Move</button>
-            <button class="file-system-tools" onClick="deleteFiles()">Delete</button>
+            <button class="file-system-tools" onClick="handleDeleteFiles()">Delete</button>
             <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
         </main>
 
         <div class="overlay"></div>
+
         <dialog id="create-folder-dialog">
             <form onsubmit="handleCreateFolder(event)">
                 <p>New Album:</p>
@@ -136,6 +137,17 @@
                     <button type="submit">Confirm</button>
                 </div>
             </form>
+        </dialog>
         
+        <dialog id="rename-file-dialog">
+            <form onsubmit="handleRenameFile(event)">
+                <p>Rename:</p>
+                <input type="text" name="newName" placeholder="New Name"/>
+                <div>
+                    <button type="button" onclick="hideRenameFileDialog()">Cancel</button>
+                    <button type="submit">Confirm</button>
+                </div>
+            </form>
+
     </body>
 </html>

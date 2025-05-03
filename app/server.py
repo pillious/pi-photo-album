@@ -170,6 +170,8 @@ def move_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
+    # TODO: sanatize the paths & file name
+
     for file in files:
         if not utils.is_file_owner(file['oldPath']) or not utils.is_file_owner(file['newPath']):
             print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")

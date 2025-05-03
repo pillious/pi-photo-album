@@ -401,7 +401,7 @@ const handleEvent = (data) => {
 /**
  * Deletes the selected files from the file system object and requests the server to delete them.
  */
-const deleteFiles = async () => {
+const handleDeleteFiles = async () => {
     let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
         (path) => `albums/${path}`
     );
@@ -423,4 +423,87 @@ const deleteFiles = async () => {
     );
     if (filePathsToDelete.length > 0) updateFileSystemUI();
     toggleFileSelection();
+};
+
+const handleRenameFile = async (e) => {
+    e.preventDefault();
+
+    const fields = new FormData(e.target);
+    const newFileName = secureFilename(fields.get('newName').trim());
+
+    if (newFileName === '') {
+        alert('File name cannot be empty');
+        return;
+    }
+
+    const selectedFilePaths = flattenObjectToPaths(selectedFiles.albums);
+
+    console.log(selectedFolders);
+    console.log(selectedFilePaths);
+
+    let pathPairs = [];
+    if (Object.keys(selectedFolders.albums).length === 0) {
+        // Case: renaming a single file
+        const idx = selectedFilePaths[0].lastIndexOf('/') + 1
+        const folderPath = selectedFilePaths[0].substring(0, idx);
+        const fileId = selectedFilePaths[0].substring(idx+1).split('.', 1)[0];
+        const fileExt = getFileExtension(selectedFilePaths[0]);
+        pathPairs.push({
+            oldPath: `albums/${selectedFilePaths[0]}`,
+            newPath: `albums/${folderPath}${fileId}.${newFileName}.${fileExt}`,
+        });
+    } else {
+        // Case: renaming a folder
+        let loc = selectedFolders.albums;
+        const folderPath = [];
+        while (Object.keys(loc).length > 0) {
+            const [key, val] = Object.entries(loc)[0];
+            folderPath.push(key);
+            loc = val;
+        }
+        const oldFolderPrefix = folderPath.join('/');
+        folderPath[folderPath.length - 1] = newFileName;
+        const newFolderPrefix = folderPath.join('/');
+        pathPairs = selectedFilePaths.map((path) => {
+            if (path.startsWith(oldFolderPrefix))
+                return {
+                    oldPath: `albums/${path}`,
+                    newPath: `albums/${newFolderPrefix + path.slice(oldFolderPrefix.length)}`,
+                };
+        });
+    }
+
+    console.log(pathPairs);
+
+    if (pathPairs.length > 0) {
+        const resp = await fetch('/move-images', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ files: pathPairs }),
+        });
+
+        const data = await resp.json();
+        const failedOldPaths = (data.failed || []).map((path) => path[0]);
+
+        console.log(data);
+
+        // TODO: if the renamed item is a folder, don't need to rename each file individually, just move the folder obj.
+        pathPairs
+            .filter((pair) => !failedOldPaths.includes(pair.oldPath))
+            .forEach((pair) =>
+                updateFileSystem(
+                    fileSystemSnapshot,
+                    removeAlbumsPrefix(pair.oldPath),
+                    removeAlbumsPrefix(pair.newPath)
+                )
+            );
+
+        // TODO: alert the user if any files failed to move
+        updateFileSystemUI();
+    }
+
+    toggleFileSelection();
+    hideRenameFileDialog();
 };

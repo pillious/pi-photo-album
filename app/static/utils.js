@@ -155,3 +155,15 @@ const removeAlbumsPrefix = (pathStr) => {
  * @returns an array of path strings without the leading 'albums/' prefix
  */
 const removeAlbumsPrefixes = (paths) => paths.map((path) => removeAlbumsPrefix(path));
+
+// const getFolderObjFromPath = (fileSystem, path) => {
+//     const pathParts = path.split('/');
+//     let loc = fileSystem;
+//     for (const part of pathParts) {
+//         if (loc[part] === undefined) {
+//             return null;
+//         }
+//         loc = loc[part];
+//     }
+//     return loc;
+// }
