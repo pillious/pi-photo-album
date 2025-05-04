@@ -5,9 +5,9 @@ import concurrent.futures
 import time
 import functools
 
-from utils import get_aws_autorefresh_session
-from cloud_adapters.adapter import Adapter
-from cloud_adapters.exceptions import AdapterException
+from app.utils.aws import get_aws_autorefresh_session
+from app.cloud_adapters.adapter import Adapter
+from app.cloud_adapters.exceptions import AdapterException
 
 def retry(max_retries=3, exceptions=(Exception,)):
     def decorator(func):
@@ -40,6 +40,30 @@ class S3Adapter(Adapter):
 
     def get_album(self, album_path):
         pass
+
+    @retry()
+    def list_album(self, album_path: str) -> List[str]:
+        paginator = self.s3_client.get_paginator('list_objects_v2')
+        page_iterator = paginator.paginate(
+            Bucket=self.bucket_name,
+            Prefix=album_path
+        )
+        image_keys = []
+        # Each page is limited to 1000 objects
+        for page in page_iterator:
+            image_keys.extend([obj['Key'] for obj in page.get('Contents', [])])
+
+        return image_keys
+
+        # Using list_objects_v2 for simplicity
+        # try:
+        #     response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=album_path)
+        #     if 'Contents' in response:
+        #         return [obj['Key'] for obj in response['Contents']]
+        #     else:
+        #         return []
+        # except Exception as e:
+        #     raise AdapterException(f"Error listing album in S3: {e}")
 
     @retry()
     def get(self, image_key: str) -> bytes:
@@ -76,7 +100,29 @@ class S3Adapter(Adapter):
         except Exception as e:
             AdapterException(f"Error deleting image from S3: {e}")
 
-    def insert_bulk(self, image_paths, image_keys) -> Tuple[List[str], List[str]]:
+    def get_bulk(self, image_paths: List[str], image_keys: List[str], ) -> Tuple[List[str], List[str]]:
+        success = []
+        failure = []
+        future_map = {}
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for image_path, image_key in zip(image_paths, image_keys):
+                future = executor.submit(self.get, image_key)
+                future_map[future] = (image_path, image_key)
+
+        for future, (image_path, image_key) in future_map.items():
+            try:
+                image_bytes: bytes = future.result() # This will raise an exception if self.insert() throws exception
+                os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                with open(image_path, "wb") as f:
+                    f.write(image_bytes)
+                success.append(image_key)
+            except Exception as e:
+                print(e)
+                failure.append(image_key)
+
+        return success, failure
+
+    def insert_bulk(self, image_paths: List[str], image_keys: List[str]) -> Tuple[List[str], List[str]]:
         success = []
         failure = []
         future_map = {}

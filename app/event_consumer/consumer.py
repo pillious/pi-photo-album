@@ -30,7 +30,7 @@ class SQSQueueConsumer(QueueConsumer):
     def __init__(self):
         self.MAX_POLLING_INTERVAL = 20 # 20 sec max allowed by sqs
         self.MAX_MESSAGES = 10 # 10 messages max allowed by sqs
-        self.VISIBILITY_TIMEOUT = 30
+        self.VISIBILITY_TIMEOUT = 10
 
         self.sqs_client = boto3.client(
             'sqs', 

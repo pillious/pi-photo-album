@@ -1,7 +1,7 @@
 import os
 import json
 
-import globals
+import app.globals
 
 def start_slideshow(album: str, blend: int, speed: int, randomize: bool):
     """
