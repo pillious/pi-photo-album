@@ -5,6 +5,7 @@ Utilities for handling when the app goes offline.
 import datetime
 import os
 import json
+import csv
 
 import app.globals as globals
 import app.utils.filesystem as filesystem
@@ -41,7 +42,7 @@ def is_within_retention_period():
     if last_poll_time is None:
         return False
     lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=globals.QUEUE_RETENTION_DAYS)
-    return last_poll_time < lower_bound
+    return last_poll_time >= lower_bound
 
 def save_simple_fs_snapshot(out_file: str):
     """
@@ -60,6 +61,22 @@ def save_simple_fs_snapshot(out_file: str):
         f.write(str(offline.get_last_poll()))
         f.write("\n")
         f.write(json.dumps(file_paths))
+
+def save_offline_events(events_file: str, events: list[str]):
+    with open(events_file, 'a') as f:
+        for event in events:
+            f.write(event + "\n")
+
+def get_offline_events(events_file: str) -> list[str]:
+    events = []
+    with open(events_file, 'r') as f:
+        csv_file = csv.reader(f)
+        for line in csv_file:
+            event = {'timestamp': line[0], 'event': line[1], 'path': line[2]}
+            if line[1] == 'MOVE':
+                event['newPath'] = line[3]
+            events.append(event)
+    return events
 
 def get_snapshot_time():
     """

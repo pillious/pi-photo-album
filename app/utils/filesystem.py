@@ -48,3 +48,14 @@ def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = []):
             for file in files:
                 file_list.append(os.path.join(root, file))
     return file_list
+
+def key_to_abs_path(key: str):
+    """
+    Converts a `key` of the format "albums/..." to the abs path on the local system.
+    
+    `key` is the path stored on the cloud.
+    """
+    return f'{globals.BASE_DIR}/{key}'
+
+def strip_base_dir(abs_path: str):
+    return abs_path[len(f"{globals.BASE_DIR}/"):]

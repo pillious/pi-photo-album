@@ -3,6 +3,8 @@ from typing import List
 import os
 from werkzeug.datastructures import FileStorage
 
+import app.globals as globals
+
 ### General Utils
 def clamp(val, min, max):
     return max if val > max else min if val < min else val

@@ -1,4 +1,5 @@
 import boto3
+from botocore.config import Config
 from botocore.credentials import RefreshableCredentials
 from botocore.session import get_session
 
@@ -17,7 +18,16 @@ def get_aws_autorefresh_session(aws_role_arn, session_name):
     return autorefresh_session, session_credentials
 
 def _get_aws_credentials(aws_role_arn, session_name):
-        sts_client = boto3.client('sts')
+        sts_client = boto3.client(
+            'sts',
+            config=Config(
+                connect_timeout=2,
+                read_timeout=2,
+                retries={
+                    'total_max_attempts': 1,  # Don't retry
+                }
+            )
+        )
         assumed_role_object = sts_client.assume_role(
             RoleArn = aws_role_arn,
             RoleSessionName = session_name,

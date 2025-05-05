@@ -1,16 +1,19 @@
 from abc import ABC, abstractmethod
 import boto3
+import botocore
 import os
 import time
+
+import botocore.config
 
 
 class QueueConsumer(ABC):
     @abstractmethod
-    def receive_messages(self) -> dict:
+    def receive_messages(self) -> dict | None:
         '''
         Receives messages from the queue.
         Returns:
-            dict: A dictionary containing the received messages.
+            A dictionary containing the received messages or None if an error occurs.
         '''
         pass
 
@@ -36,17 +39,25 @@ class SQSQueueConsumer(QueueConsumer):
             'sqs', 
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION')
+            region_name=os.getenv('AWS_REGION'),
+            # config=botocore.config.Config(
+            #     connect_timeout=2,
+            #     read_timeout=2,
+            # )
         )
 
     def receive_messages(self):
-        return self.sqs_client.receive_message(
-            QueueUrl=os.getenv('RECEIVE_EVENT_QUEUE_URL'),
-            MessageAttributeNames=['All'],
-            MaxNumberOfMessages=self.MAX_MESSAGES,
-            VisibilityTimeout=self.VISIBILITY_TIMEOUT,
-            WaitTimeSeconds=self.MAX_POLLING_INTERVAL
-        )
+        try:
+            return self.sqs_client.receive_message(
+                QueueUrl=os.getenv('RECEIVE_EVENT_QUEUE_URL'),
+                MessageAttributeNames=['All'],
+                MaxNumberOfMessages=self.MAX_MESSAGES,
+                VisibilityTimeout=self.VISIBILITY_TIMEOUT,
+                WaitTimeSeconds=self.MAX_POLLING_INTERVAL
+            )
+        except Exception as e:
+            print(f"Error reading from queue: {e}")
+            return None
 
     def delete_messages(self, id_to_receipt_handles, max_retries = 2):
         id_to_rh = id_to_receipt_handles.copy()

@@ -140,6 +140,11 @@ Message Body -> {
 }
 ```
 
+Startup script TODO:
+- start the polling service first.
+- wait ~10 seconds
+- then start the web service
+
 TODO
 [] server max payload is 128mb. The client shouldn't try to send more than that.
 [] resync after going offline.
@@ -149,3 +154,5 @@ TODO
 [-] fix s3 permissions to user prefix.
 
 [] Uploading file spinner
+
+[-] Don't allow selection of top level folders

@@ -1,9 +1,13 @@
 from typing import List, Tuple
 import boto3
+import botocore
 import os
 import concurrent.futures
 import time
 import functools
+
+import botocore.config
+import botocore.exceptions
 
 from app.utils.aws import get_aws_autorefresh_session
 from app.cloud_adapters.adapter import Adapter
@@ -28,15 +32,35 @@ def retry(max_retries=3, exceptions=(Exception,)):
 class S3Adapter(Adapter):
     def __init__(self, bucket_name: str):
         self.bucket_name = bucket_name
+
+        self.s3_client = None
+        self.sqs_client = None
+
+        self._create_s3_client()
+        self._create_sqs_client()
+
+        print(self.s3_client)
+        print(self.sqs_client)
+
+    def _create_s3_client(self):
         self.s3_client = boto3.client(
             's3', 
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION')
+            region_name=os.getenv('AWS_REGION'),
+            config=botocore.config.Config(
+                connect_timeout=2,
+                read_timeout=2,
+                retries={'total_max_attempts': 1} # Don't retry
+            )
         )
 
-        autorefresh_session, _ = get_aws_autorefresh_session(os.getenv('PUSH_QUEUE_ROLE'), "push-queue-session")
-        self.sqs_client = autorefresh_session.client('sqs', region_name=os.getenv('AWS_REGION'))
+    def _create_sqs_client(self):
+        try:
+            autorefresh_session, _ = get_aws_autorefresh_session(os.getenv('PUSH_QUEUE_ROLE'), "push-queue-session")
+            self.sqs_client = autorefresh_session.client('sqs', region_name=os.getenv('AWS_REGION'))
+        except botocore.exceptions.EndpointConnectionError:
+            self.sqs_client = None
 
     def get_album(self, album_path):
         pass
@@ -76,6 +100,7 @@ class S3Adapter(Adapter):
     @retry()
     def insert(self, image_path: str, image_key: str):
         try:
+            print("ATTEMPT")
             self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
@@ -175,10 +200,13 @@ class S3Adapter(Adapter):
     @retry()
     def insert_queue(self, message: str, message_group_id: str = "default"):
         try:
-            self.sqs_client.send_message(
-                QueueUrl=os.getenv('PUSH_QUEUE_URL'),
-                MessageBody=message,
-                MessageGroupId=message_group_id
-            )
+            if not self.sqs_client:
+                self._create_sqs_client()
+                if self.sqs_client:
+                    self.sqs_client.send_message(
+                        QueueUrl=os.getenv('PUSH_QUEUE_URL'),
+                        MessageBody=message,
+                        MessageGroupId=message_group_id
+                    )
         except Exception as e:
             raise AdapterException(f"Error sending message to SQS: {e}")
