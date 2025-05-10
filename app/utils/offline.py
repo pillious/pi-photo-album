@@ -86,14 +86,4 @@ def get_snapshot_time():
             return datetime.datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
         return None
-    
-def is_online():
-    """
-    Check if the system is online by checking the last poll time.
-
-    The last poll time should be within the last 30 seconds.
-    """
-    last_poll_time = get_last_poll()
-    lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)
-    return last_poll_time >= lower_bound
 

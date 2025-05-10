@@ -15,9 +15,6 @@ from app.event_consumer.consumer import SQSQueueConsumer
 
 load_dotenv()
 
-API_URL = f"http://localhost:{os.getenv('API_PORT', 5000)}"
-SQS_PING_URL = f"https://sqs.{os.getenv('AWS_REGION', 'us-east-1')}.amazonaws.com/ping"
-
 def main():
     sqs_consumer = SQSQueueConsumer()
     failed_health_checks = 0
@@ -40,7 +37,7 @@ def main():
         print("Polling...") # DEBUG
         try:
             # Check if the SQS queue is healthy
-            if not aws.ping(SQS_PING_URL):
+            if not aws.ping(globals.SQS_PING_URL):
                 handle_consumer_offline()
                 failed_health_checks += 1
                 time.sleep(2 ** min(failed_health_checks, 5))
@@ -80,7 +77,7 @@ def is_api_healthy():
     Check the health of the API.
     """
     try:
-        response = requests.get(f"{API_URL}/health", timeout=10)
+        response = requests.get(f"{globals.API_URL}/health", timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')
@@ -95,7 +92,7 @@ def send_events(events):
     Send events to the API.
     """
     try:
-        response = requests.post(f"{API_URL}/receive-events", json={"events": events}, timeout=10)
+        response = requests.post(f"{globals.API_URL}/receive-events", json={"events": events}, timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')
@@ -110,7 +107,7 @@ def send_resync_request():
     Send a resync filesystem request to the API.
     """
     try:
-        response = requests.post(f"{API_URL}/resync", timeout=10)
+        response = requests.post(f"{globals.API_URL}/resync", timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')

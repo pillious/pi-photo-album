@@ -86,14 +86,3 @@ class SQSQueueConsumer(QueueConsumer):
             time.sleep(2 ** retry) # exponential backoff
 
         return id_to_rh
-    
-    def ping(self):
-        try:
-            resp = requests.get("https://sqs.us-east-2.amazonaws.com/ping", timeout=2)
-            if resp.status_code != 200 or resp.text != "healthy":
-                print(f"Unexpected SQS ping response: {resp.status_code} {resp.text}")
-                return False
-        except Exception as e:
-            print(f"Error pinging SQS")
-            return False
-        return True

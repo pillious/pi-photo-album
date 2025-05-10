@@ -43,9 +43,9 @@ def _get_aws_credentials(aws_role_arn, session_name):
 
 def ping(url: str):
     try:
-        resp = requests.get(url, timeout=2)
-        if resp.status_code != 200 or resp.text != "healthy":
-            print(f"Unexpected SQS ping response: {resp.status_code} {resp.text}")
+        resp = requests.get(url, timeout=1.5)
+        if resp.status_code != 200:
+            print(f"{resp.status_code} {url}")
             return False
     except Exception as e:
         print(f"Error pinging {url}")

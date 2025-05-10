@@ -10,6 +10,7 @@ import datetime
 from app.announcer import EventAnnouncer
 from app.cloud_adapters import s3_adapter
 import app.slideshow as slideshow
+import app.utils.aws as aws
 import app.utils.filesystem as filesystem
 import app.utils.offline as offline
 import app.utils.utils as utils
@@ -128,11 +129,10 @@ def upload_images():
         for i, code in enumerate(exit_codes):
             saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
 
-    if not offline.is_online():
+    if not aws.ping(globals.S3_PING_URL):
         timestamp = str(datetime.datetime.now(datetime.timezone.utc))
         offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, [f'{timestamp},PUT,{sf[1]}' for sf in saved_files])
-
-    if len(saved_files) > 0:     
+    elif len(saved_files) > 0:
         # Bulk upload to cloud
         success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [filesystem.strip_base_dir(sf[1]) for sf in saved_files])
         failed_files = failed_files + [sf[0] for sf in saved_files if filesystem.strip_base_dir(sf[1]) in failure]
