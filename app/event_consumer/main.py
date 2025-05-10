@@ -8,6 +8,7 @@ import os
 import botocore
 
 import app.globals as globals
+import app.utils.aws as aws
 import app.utils.offline as offline
 from app.event_consumer.consumer import SQSQueueConsumer
 
@@ -15,6 +16,7 @@ from app.event_consumer.consumer import SQSQueueConsumer
 load_dotenv()
 
 API_URL = f"http://localhost:{os.getenv('API_PORT', 5000)}"
+SQS_PING_URL = f"https://sqs.{os.getenv('AWS_REGION', 'us-east-1')}.amazonaws.com/ping"
 
 def main():
     sqs_consumer = SQSQueueConsumer()
@@ -36,10 +38,14 @@ def main():
             continue
 
         print("Polling...") # DEBUG
-        failed_health_checks = 0
         try:
-            # raise(botocore.exceptions.ConnectionError(error="TESTING")) # DEBUG
-
+            # Check if the SQS queue is healthy
+            if not aws.ping(SQS_PING_URL):
+                handle_consumer_offline()
+                failed_health_checks += 1
+                time.sleep(2 ** min(failed_health_checks, 5))
+                continue
+        
             response = sqs_consumer.receive_messages()
             if response:
                 events = []
@@ -65,10 +71,9 @@ def main():
             offline.write_poll_time()
         except botocore.exceptions.ConnectionError as e:
             print("Connection error.")
-            if offline.get_last_poll() != offline.get_snapshot_time():
-                print("Went offline. Saving file system snapshot.")
-                offline.save_simple_fs_snapshot(globals.FS_SNAPSHOT_FILE)
-            # time.sleep(5) # TEMP: for debugging
+            handle_consumer_offline()
+        failed_health_checks = 0
+
 
 def is_api_healthy():
     """
@@ -114,6 +119,11 @@ def send_resync_request():
     except Exception:
         return False
     return True
+
+def handle_consumer_offline():
+    if offline.get_last_poll() != offline.get_snapshot_time():
+        print("Went offline. Saving file system snapshot.")
+        offline.save_simple_fs_snapshot(globals.FS_SNAPSHOT_FILE)
 
 if __name__ == "__main__":
     main()

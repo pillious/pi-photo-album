@@ -2,6 +2,7 @@ import boto3
 from botocore.config import Config
 from botocore.credentials import RefreshableCredentials
 from botocore.session import get_session
+import requests
 
 ### AWS Session Utils
 def get_aws_autorefresh_session(aws_role_arn, session_name):
@@ -39,3 +40,14 @@ def _get_aws_credentials(aws_role_arn, session_name):
             'token': assumed_role_object['Credentials']['SessionToken'],
             'expiry_time': assumed_role_object['Credentials']['Expiration'].isoformat()
         }
+
+def ping(url: str):
+    try:
+        resp = requests.get(url, timeout=2)
+        if resp.status_code != 200 or resp.text != "healthy":
+            print(f"Unexpected SQS ping response: {resp.status_code} {resp.text}")
+            return False
+    except Exception as e:
+        print(f"Error pinging {url}")
+        return False
+    return True

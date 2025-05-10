@@ -27,20 +27,19 @@ def write_poll_time():
 def get_last_poll():
     """
     Read the last poll timestamp from file.
+    If the file does not exist or is empty, returns 1 January 1970.
     """
     try:
         with open(globals.LAST_POLL_FILE, 'r') as f:
             return datetime.datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
-        return None
+        return datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
 def is_within_retention_period():
     """
     Check if the last poll time is within the queue retention period.
     """
     last_poll_time = get_last_poll()
-    if last_poll_time is None:
-        return False
     lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=globals.QUEUE_RETENTION_DAYS)
     return last_poll_time >= lower_bound
 
@@ -95,8 +94,6 @@ def is_online():
     The last poll time should be within the last 30 seconds.
     """
     last_poll_time = get_last_poll()
-    if last_poll_time is None:
-        return False
     lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)
     return last_poll_time >= lower_bound
 

@@ -3,6 +3,7 @@ import boto3
 import botocore
 import os
 import time
+import requests
 
 import botocore.config
 
@@ -40,10 +41,11 @@ class SQSQueueConsumer(QueueConsumer):
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
             region_name=os.getenv('AWS_REGION'),
-            # config=botocore.config.Config(
-            #     connect_timeout=2,
-            #     read_timeout=2,
-            # )
+            config=botocore.config.Config(
+                connect_timeout=2,
+                read_timeout=self.MAX_POLLING_INTERVAL + 2,
+                retries={'total_max_attempts': 1} # Don't retry
+            )
         )
 
     def receive_messages(self):
@@ -84,3 +86,14 @@ class SQSQueueConsumer(QueueConsumer):
             time.sleep(2 ** retry) # exponential backoff
 
         return id_to_rh
+    
+    def ping(self):
+        try:
+            resp = requests.get("https://sqs.us-east-2.amazonaws.com/ping", timeout=2)
+            if resp.status_code != 200 or resp.text != "healthy":
+                print(f"Unexpected SQS ping response: {resp.status_code} {resp.text}")
+                return False
+        except Exception as e:
+            print(f"Error pinging SQS")
+            return False
+        return True
