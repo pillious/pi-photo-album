@@ -8,7 +8,7 @@ class Adapter(ABC):
         pass
 
     @abstractmethod
-    def insert(self, image_path: str, image_key: str) -> bool:
+    def insert(self, image_path: str, image_key: str):
         pass
     
     # Return: Tuple[success, failure]
@@ -17,7 +17,7 @@ class Adapter(ABC):
         pass
 
     @abstractmethod
-    def delete(self, image_key: str) -> bool:
+    def delete(self, image_key: str):
         pass
 
     # @abstractmethod

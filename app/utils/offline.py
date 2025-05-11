@@ -77,6 +77,10 @@ def get_offline_events(events_file: str) -> list[str]:
             events.append(event)
     return events
 
+def clear_offline_events(events_file: str):
+    with open(events_file, 'w') as file:
+        pass
+
 def get_snapshot_time():
     """
     Get the time of the last snapshot.

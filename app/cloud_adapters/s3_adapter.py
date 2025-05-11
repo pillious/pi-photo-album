@@ -33,17 +33,14 @@ class S3Adapter(Adapter):
     def __init__(self, bucket_name: str):
         self.bucket_name = bucket_name
 
-        self.s3_client = None
-        self.sqs_client = None
-
-        self._create_s3_client()
-        self._create_sqs_client()
+        self.s3_client = self._create_s3_client()
+        self.sqs_client = self._create_sqs_client()
 
         print(self.s3_client)
         print(self.sqs_client)
 
     def _create_s3_client(self):
-        self.s3_client = boto3.client(
+        return boto3.client(
             's3', 
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
@@ -58,9 +55,9 @@ class S3Adapter(Adapter):
     def _create_sqs_client(self):
         try:
             autorefresh_session, _ = get_aws_autorefresh_session(os.getenv('PUSH_QUEUE_ROLE'), "push-queue-session")
-            self.sqs_client = autorefresh_session.client('sqs', region_name=os.getenv('AWS_REGION'))
+            return autorefresh_session.client('sqs', region_name=os.getenv('AWS_REGION'))
         except botocore.exceptions.EndpointConnectionError:
-            self.sqs_client = None
+            return None
 
     def get_album(self, album_path):
         pass
@@ -96,6 +93,7 @@ class S3Adapter(Adapter):
             return obj['Body'].read()
         except Exception as e:
             AdapterException(f"Error getting image from S3: {e}")
+        return bytes()
 
     @retry()
     def insert(self, image_path: str, image_key: str):

@@ -39,7 +39,10 @@ def enforce_mime(mime_type):
 @app.route('/', methods=['GET'])
 def index():
     settings = slideshow.load_settings()
-    default_file_structure = filesystem.get_default_file_structure(os.getenv('USERNAME'))
+    username = os.getenv('USERNAME')
+    if not username:
+        raise ValueError("Environment variable 'USERNAME' must be set.")
+    default_file_structure = filesystem.get_default_file_structure(username)
     file_structure = filesystem.get_file_structure(f"{globals.BASE_DIR}/albums")
 
     # Ensure that the default file structure is always present.
@@ -49,7 +52,9 @@ def index():
 @app.route('/save-settings', methods=['POST'])
 @enforce_mime('application/json')
 def save_settings():
-    settings = request.json
+    settings: dict | None = request.json
+    if not settings:
+        return jsonify({"status": "ok"})
 
     # Some settings validation
     if 'album' not in settings or type(settings["album"]) is not str:
@@ -85,7 +90,7 @@ def save_settings():
 @app.route('/upload-images', methods=['POST'])
 @enforce_mime('multipart/form-data')
 def upload_images():
-    file_ids: dict[tuple[str, str]] = {} # Dict[filename: guid]
+    file_ids: dict[str, str] = {} # Dict[filename: guid]
     saved_files: list[tuple[str, str]] = [] # List[(guid, file_path)]
     heif_files: list[tuple[str, str]] = [] # List[(guid, file_path)]
     failed_files: list[str] = [] # List[guid]
@@ -105,6 +110,8 @@ def upload_images():
     for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
+            if not image.filename:
+                continue
             # guid comes from the request data. It's not a trusted value! It's only use is to identify the files that failed to upload to cloud.
             guid = file_ids.get(image.filename, "") 
             image_name = f'{uuid.uuid4()}.{secure_filename(image.filename)}'
@@ -123,7 +130,7 @@ def upload_images():
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{globals.BASE_DIR}/albums/{album_path}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
+        jpg_paths = [f"{globals.BASE_DIR}/albums/{os.path.dirname(heif_file[1])}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
         heif_paths = [f"{globals.TMP_STORAGE_DIR}/{heif_file[1]}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
@@ -150,7 +157,10 @@ def upload_images():
 @app.route('/delete-images', methods=['POST'])
 @enforce_mime('application/json')
 def delete_images():
-    files = request.json.get('files', [])
+    req_json: dict | None = request.json
+    if not req_json:
+        return jsonify({"status": "ok", "failed": []})
+    files = req_json.get('files', [])
     if not files:
         return jsonify({"status": "ok", "failed": []})
     
@@ -169,7 +179,10 @@ def delete_images():
 @app.route('/move-images', methods=['POST'])
 @enforce_mime('application/json')
 def move_images():
-    files = request.json.get('files', [])
+    req_json: dict | None = request.json
+    if not req_json:
+        return jsonify({"status": "ok", "failed": []})
+    files = req_json.get('files', [])
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
@@ -200,7 +213,10 @@ def move_images():
 @app.route('/receive-events', methods=['POST'])
 @enforce_mime('application/json')
 def receive_events():
-    payload = request.json
+    payload: dict | None = request.json
+    if not payload:
+        return jsonify({"status": "ok"})
+
     processed_events = []
     print(payload)
 
@@ -313,4 +329,4 @@ if __name__ == '__main__':
     os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
     os.makedirs(globals.TMP_STORAGE_DIR, exist_ok=True)
 
-    app.run(debug=True, host='0.0.0.0', port=os.getenv('API_PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))

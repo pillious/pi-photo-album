@@ -1,10 +1,8 @@
 import botocore.exceptions
 from dotenv import load_dotenv
-import datetime
 import requests
 import time
 import json
-import os
 import botocore
 
 import app.globals as globals
@@ -61,7 +59,6 @@ def main():
 
                 if events:
                     if not send_events(events):
-                        print(f"Error sending messages to API: {e}")
                         time.sleep(10) # Wait for the full length of sqs VISIBILITY_TIMEOUT
                         continue
                     sqs_consumer.delete_messages(id_to_receipt_handles)
@@ -98,7 +95,8 @@ def send_events(events):
         status = response.json().get('status')
         if status != 'ok':
             return False
-    except Exception:
+    except Exception as e:
+        print(f"Error sending messages to API: {e}")
         return False
     return True
 
