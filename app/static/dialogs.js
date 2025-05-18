@@ -81,11 +81,3 @@ const hideRenameFileDialog = () => {
     const form = document.getElementById('rename-file-dialog').querySelector('form');
     form.reset();
 }
-
-const showOverlay = () => {
-    document.querySelector('.overlay').style.display = 'block';
-}
-
-const hideOverlay = () => {
-    document.querySelector('.overlay').style.display = 'none';
-}

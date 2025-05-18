@@ -66,11 +66,13 @@ def save_offline_events(events_file: str, events: list[str]):
         for event in events:
             f.write(event + "\n")
 
-def get_offline_events(events_file: str) -> list[str]:
-    events = []
+def get_offline_events(events_file: str):
+    events: list[dict[str, str]] = []
     with open(events_file, 'r') as f:
         csv_file = csv.reader(f)
         for line in csv_file:
+            if len(line) < 3:
+                continue
             event = {'timestamp': line[0], 'event': line[1], 'path': line[2]}
             if line[1] == 'MOVE':
                 event['newPath'] = line[3]

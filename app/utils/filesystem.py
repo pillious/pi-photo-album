@@ -59,3 +59,9 @@ def key_to_abs_path(key: str):
 
 def strip_base_dir(abs_path: str):
     return abs_path[len(f"{globals.BASE_DIR}/"):]
+
+def silentremove(path: str):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass

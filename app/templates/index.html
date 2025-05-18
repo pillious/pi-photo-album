@@ -19,6 +19,7 @@
         <script type="text/javascript" src="/static/fileSystem.js"></script>
         <script type="text/javascript" src="/static/utils.js"></script>
         <script type="text/javascript" src="/static/dialogs.js"></script>
+        <script type="text/javascript" src="/static/overlay.js"></script>
     </head>
     <body>
         <main>
@@ -105,12 +106,10 @@
             <button onClick="toggleFileSelection()">Select</button>
             <!-- subcase of move -->
             <button class="file-system-tools" id="file-system-tools-rename" onClick="showRenameFileDialog()">Rename</button> 
-            <button class="file-system-tools" onClick="showMoveFilesDialog()">Move</button>
-            <button class="file-system-tools" onClick="handleDeleteFiles()">Delete</button>
+            <button class="file-system-tools" id="file-system-tools-move" onClick="showMoveFilesDialog()">Move</button>
+            <button class="file-system-tools" id="file-system-tools-delete" onClick="handleDeleteFiles()">Delete</button>
             <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
         </main>
-
-        <div class="overlay"></div>
 
         <dialog id="create-folder-dialog">
             <form onsubmit="handleCreateFolder(event)">
@@ -148,6 +147,12 @@
                     <button type="submit">Confirm</button>
                 </div>
             </form>
+        </dialog>
 
+        <div class="overlay"></div>
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-caption">Loading... ASDF</div>
+        </div>
     </body>
 </html>

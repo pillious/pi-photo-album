@@ -3,6 +3,7 @@ Settings Logic
 */
 const handleSettingsSubmit = (e) => {
     e.preventDefault();
+    showLoadingSpinnerWithCaption('Saving settings...');
 
     // Confirmation dialog
     if (!confirm('Are you sure?')) {
@@ -27,7 +28,7 @@ const handleSettingsSubmit = (e) => {
         settingsState.randomize !== newState.randomize ||
         settingsState.isEnabled !== newState.isEnabled
     ) {
-        const saved = saveState(newState);
+        const saved = saveSettingsState(newState);
         if (saved) {
             updateSettingsUI(newState);
             console.log('Saved: ', newState);
@@ -35,10 +36,11 @@ const handleSettingsSubmit = (e) => {
             alert('Failed to save settings');
         }
     }
+    hideLoadingSpinner();
 };
 
 const handleResetToDefault = () => {
-    saveState(DEFAULT_SETTINGS);
+    saveSettingsState(DEFAULT_SETTINGS);
     updateSettingsUI(DEFAULT_SETTINGS);
 };
 
@@ -67,7 +69,7 @@ const updateSettingsUI = (newState) => {
     albumSelect.value = settingsState.album;
 };
 
-const saveState = async (state) => {
+const saveSettingsState = async (state) => {
     const resp = await fetch('/save-settings', {
         method: 'POST',
         headers: {

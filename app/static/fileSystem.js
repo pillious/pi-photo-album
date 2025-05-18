@@ -9,6 +9,12 @@ const selectedFolders = { albums: {} };
 let allowFileSelection = false;
 let userSelectionCount = 0;
 
+const overrideFileSystem = (fileSystem) => {
+    if (fileSystem && 'albums' in fileSystem) {
+        fileSystemSnapshot.albums = fileSystem.albums;
+    }
+};
+
 /**
  * Creates the file system UI based on the file system object.
  */
@@ -313,14 +319,14 @@ const handleSelectItem = (e, path, isFile) => {
         for (const child of children) {
             const checkbox = child.querySelector('input[type="checkbox"]');
             if (checkbox) {
-                if (checkbox.checked && !checkbox.disabled) setRenameToolEnabledState(-1);
+                if (checkbox.checked && !checkbox.disabled) setToolStates(-1);
                 checkbox.checked = e.target.checked;
                 checkbox.disabled = e.target.checked;
             }
         }
     }
 
-    setRenameToolEnabledState(e.target.checked ? 1 : -1);
+    setToolStates(e.target.checked ? 1 : -1);
 };
 
 /**
@@ -329,9 +335,11 @@ const handleSelectItem = (e, path, isFile) => {
  */
 const toggleFileSelection = () => {
     allowFileSelection = !allowFileSelection;
-    if (!allowFileSelection) {
+    if (allowFileSelection) {
+        setToolStates(0);
+    } else {
         selectedFiles.albums = {};
-        setRenameToolEnabledState(-userSelectionCount);
+        setToolStates(-userSelectionCount);
     }
     const selectItems = document
         .querySelector('[data-fs-tree-]')
@@ -350,13 +358,15 @@ const toggleFileSelection = () => {
 };
 
 /**
- * Handles the enabled/disabled state of the rename tool based on the user selection count.
+ * Handles the enabled/disabled state of the file system tools based on the user selection count.
  *
  * @param {number} change Update the user selection count by this amount.
  */
-const setRenameToolEnabledState = (change) => {
+const setToolStates = (change) => {
     userSelectionCount += change;
-    document.getElementById('file-system-tools-rename').disabled = userSelectionCount > 1;
+    document.getElementById('file-system-tools-rename').disabled = userSelectionCount !== 1;
+    document.getElementById('file-system-tools-move').disabled = userSelectionCount < 1;
+    document.getElementById('file-system-tools-delete').disabled = userSelectionCount < 1;
 };
 
 /**
@@ -372,25 +382,42 @@ const handleEvent = (data) => {
         switch (message.event) {
             case 'PUT': {
                 const path = removeAlbumsPrefix(message.path);
-                updateFileSystem(fileSystemSnapshot, '', path);
                 console.log('PUT event: ' + path);
+                updateFileSystem(fileSystemSnapshot, '', path);
                 break;
             }
             case 'DELETE': {
                 const path = removeAlbumsPrefix(message.path);
-                updateFileSystem(fileSystemSnapshot, path, '');
                 console.log('DELETE event: ' + path);
+                updateFileSystem(fileSystemSnapshot, path, '');
                 break;
             }
             case 'MOVE': {
                 const oldPath = removeAlbumsPrefix(message.path);
                 const newPath = removeAlbumsPrefix(message.newPath);
-                updateFileSystem(fileSystemSnapshot, oldPath, newPath);
                 console.log('MOVE event: ' + oldPath + ' -> ' + newPath);
+                updateFileSystem(fileSystemSnapshot, oldPath, newPath);
+                break;
+            }
+            case 'RESYNC': {
+                if ('fileStructure' in message) overrideFileSystem(message.fileStructure);
+                console.log('RESYNC event:');
+                console.log(message.fileStructure);
+                refreshUI();
+                break;
+            }
+            case 'LOADING': {
+                const loading = message.loading || false;
+                console.log('LOADING event: ' + loading + ' - ' + message.message);
+                if (loading) {
+                    showLoadingSpinnerWithCaption(message.message || '');
+                } else {
+                    hideLoadingSpinner();
+                }
                 break;
             }
             default: {
-                console.log('UNKNOWN event: ' + message.event);
+                console.warn('UNKNOWN event: ' + message.event);
                 break;
             }
         }
@@ -405,6 +432,8 @@ const handleEvent = (data) => {
  * Deletes the selected files from the file system object and requests the server to delete them.
  */
 const handleDeleteFiles = async () => {
+    showLoadingSpinnerWithCaption('Deleting file(s)..');
+
     let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
         (path) => `albums/${path}`
     );
@@ -425,11 +454,14 @@ const handleDeleteFiles = async () => {
         updateFileSystem(fileSystemSnapshot, removeAlbumsPrefix(path), '')
     );
     if (filePathsToDelete.length > 0) updateFileSystemUI();
+
     toggleFileSelection();
+    hideLoadingSpinner();
 };
 
 const handleRenameFile = async (e) => {
     e.preventDefault();
+    showLoadingSpinnerWithCaption('Renaming file(s)..');
 
     const fields = new FormData(e.target);
     const newFileName = secureFilename(fields.get('newName').trim());
@@ -509,4 +541,5 @@ const handleRenameFile = async (e) => {
 
     toggleFileSelection();
     hideRenameFileDialog();
+    hideLoadingSpinner();
 };

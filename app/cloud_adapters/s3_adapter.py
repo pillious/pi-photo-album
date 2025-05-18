@@ -36,9 +36,6 @@ class S3Adapter(Adapter):
         self.s3_client = self._create_s3_client()
         self.sqs_client = self._create_sqs_client()
 
-        print(self.s3_client)
-        print(self.sqs_client)
-
     def _create_s3_client(self):
         return boto3.client(
             's3', 
@@ -76,16 +73,6 @@ class S3Adapter(Adapter):
 
         return image_keys
 
-        # Using list_objects_v2 for simplicity
-        # try:
-        #     response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=album_path)
-        #     if 'Contents' in response:
-        #         return [obj['Key'] for obj in response['Contents']]
-        #     else:
-        #         return []
-        # except Exception as e:
-        #     raise AdapterException(f"Error listing album in S3: {e}")
-
     @retry()
     def get(self, image_key: str) -> bytes:
         try:
@@ -98,7 +85,6 @@ class S3Adapter(Adapter):
     @retry()
     def insert(self, image_path: str, image_key: str):
         try:
-            print("ATTEMPT")
             self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
             raise AdapterException(f"Error uploading image to S3: {e}")
@@ -111,7 +97,6 @@ class S3Adapter(Adapter):
                 CopySource={'Bucket': self.bucket_name, 'Key': src_key},
                 Key=dest_key
             )
-            print(response)
             self.delete(src_key)
         except Exception as e:
             raise AdapterException(f"Error moving image in S3: {e}")
@@ -123,7 +108,7 @@ class S3Adapter(Adapter):
         except Exception as e:
             AdapterException(f"Error deleting image from S3: {e}")
 
-    def get_bulk(self, image_paths: List[str], image_keys: List[str], ) -> Tuple[List[str], List[str]]:
+    def get_bulk(self, image_paths: List[str], image_keys: List[str]) -> Tuple[List[str], List[str]]:
         success = []
         failure = []
         future_map = {}
@@ -132,16 +117,17 @@ class S3Adapter(Adapter):
                 future = executor.submit(self.get, image_key)
                 future_map[future] = (image_path, image_key)
 
-        for future, (image_path, image_key) in future_map.items():
-            try:
-                image_bytes: bytes = future.result() # This will raise an exception if self.insert() throws exception
-                os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                with open(image_path, "wb") as f:
-                    f.write(image_bytes)
-                success.append(image_key)
-            except Exception as e:
-                print(e)
-                failure.append(image_key)
+            for future in concurrent.futures.as_completed(future_map):
+                image_path, image_key = future_map[future]
+                try:
+                    image_bytes: bytes = future.result()
+                    os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                    with open(image_path, "wb") as f:
+                        f.write(image_bytes)
+                    success.append(image_key)
+                except Exception as e:
+                    print(e)
+                    failure.append(image_key)
 
         return success, failure
 
@@ -154,13 +140,14 @@ class S3Adapter(Adapter):
                 future = executor.submit(self.insert, image_path, image_key)
                 future_map[future] = image_key
 
-        for future, image_key in future_map.items():
-            try:
-                _ = future.result() # This will raise an exception if self.insert() throws exception
-                success.append(image_key)
-            except Exception as e:
-                print(e)
-                failure.append(image_key)
+            for future in concurrent.futures.as_completed(future_map):
+                image_key = future_map[future]
+                try:
+                    _ = future.result()
+                    success.append(image_key)
+                except Exception as e:
+                    print(e)
+                    failure.append(image_key)
 
         return success, failure
 
@@ -173,13 +160,14 @@ class S3Adapter(Adapter):
                 future = executor.submit(self.move, src_key, dest_key)
                 future_map[future] = (src_key, dest_key)
 
-        for future, key_pair in future_map.items():
-            try:
-                _ = future.result() # This will raise an exception if self.insert() throws exception
-                success.append(key_pair)
-            except Exception as e:
-                print(e)
-                failure.append(key_pair)
+            for future in concurrent.futures.as_completed(future_map):
+                key_pair = future_map[future]
+                try:
+                    _ = future.result()
+                    success.append(key_pair)
+                except Exception as e:
+                    print(e)
+                    failure.append(key_pair)
 
         return success, failure
 

@@ -99,6 +99,7 @@ const createSetAlbumForAllBtn = () => {
 const handleImagesUpload = async (e) => {
     e.preventDefault();
     if (Object.keys(filesInStaging).length === 0) return;
+    showLoadingSpinnerWithCaption('Uploading image(s)...');
 
     const data = new FormData();
     metadata = { files: {} };
@@ -155,6 +156,8 @@ const handleImagesUpload = async (e) => {
         console.error(e);
         alert('Failed to upload images.');
     }
+
+    hideLoadingSpinner();
 };
 
 const updateUploadButtonState = () => {

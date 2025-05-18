@@ -13,13 +13,17 @@ let settingsState = { ...DEFAULT_SETTINGS };
 // List[{id: {fileContent: File, album: str, fileName: str}]
 let filesInStaging = {};
 
+const refreshUI = () => {
+    updateSettingsUI(settingsState);
+    updateFileSystemUI();
+    updateFileStagingUI();
+}
+
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log(savedSettings);
     console.log(fileSystemSnapshot);
-    updateSettingsUI(savedSettings);
-    updateFileSystemUI();
-    updateFileStagingUI();
+    refreshUI();
 
     // Settings section event listeners
     document.getElementById('blend').addEventListener('input', (e) => {
@@ -44,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventStream = new EventSource('/stream-events');
     eventStream.onmessage = (e) => {
         if (e.data === 'connected') {
-            console.log('DEBUG: Connection established to the event stream');
+            console.log('Connection established to the event stream');
             return;
         }
         // We don't want to process the connection confirmation message.
