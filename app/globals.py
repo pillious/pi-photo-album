@@ -13,6 +13,7 @@ SETTINGS_FILE = CONFIG_DIR + "/settings.json"
 LAST_POLL_FILE = CONFIG_DIR + "/last_poll.txt"
 FS_SNAPSHOT_FILE = CONFIG_DIR + "/fs_snapshot.json"
 OFFLINE_EVENTS_FILE = CONFIG_DIR + "/events.csv"
+ACTIVE_SLIDESHOW_FILE = CONFIG_DIR + "/active_slideshow.txt"
 
 BASE_DIR = os.path.abspath(os.path.expandvars("$HOME/pi-photo-album"))
 TMP_STORAGE_DIR = BASE_DIR + "/tmp"

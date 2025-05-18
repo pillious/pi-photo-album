@@ -344,6 +344,7 @@ def resync():
         evt["path"] = filesystem.strip_base_dir(evt["path"])
         if evt["event"] == "MOVE":
             evt["newPath"] = filesystem.strip_base_dir(evt["newPath"])
+    print("Offline events:")
     print(offline_events)
 
     # print(files_not_in_cloud)

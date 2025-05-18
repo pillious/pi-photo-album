@@ -1,8 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
 # handle app termination
 cleanup() {
   echo "Stopping services..."
+  echo "Killing slideshow"
+  sudo killall -15 fbi
   if [[ -n "$EVENT_CONSUMER_PID" ]]; then
     echo "Killing event consumer (PID: $EVENT_CONSUMER_PID)"
     kill -TERM "$EVENT_CONSUMER_PID"

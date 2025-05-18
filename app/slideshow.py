@@ -13,17 +13,15 @@ def start_slideshow(album: str, blend: int, speed: int, randomize: bool):
     randomize: bool - Whether to display images in a random order.
     """
 
-    photos = f"{album}/*"
-    cmd = ["sudo", "fbi", "-d", "/dev/fb0", "-T", "1", "-noverbose", "-readahead", "-a", photos, "-t", str(speed), "-blend", str(blend)]
+    print(album, blend, speed, randomize)
 
-    if randomize:
-        cmd.append("-u")
-
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "display_slideshow.sh")
+    cmd = [script_path, album, str(blend), str(speed), str(randomize), globals.ACTIVE_SLIDESHOW_FILE]
     print(' '.join(cmd))
     return os.system(' '.join(cmd))
 
 def stop_slideshow():
-    cmd = "sudo killall -15 fbi"
+    cmd = "pkill -f display_slideshow.sh"
     print(cmd)
     return os.system(cmd)
 

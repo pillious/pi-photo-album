@@ -1,15 +1,15 @@
 
-# from cloud_adapters.s3_adapter import S3Adapter
-# import os
-# from dotenv import load_dotenv
+from app.cloud_adapters.s3_adapter import S3Adapter
+import os
+from dotenv import load_dotenv
 
 # import slideshow
 # import globals
 # import utils
 
-# load_dotenv()
+load_dotenv()
 
-# # s3 = S3Adapter("pi-photo-album-s3")
+s3 = S3Adapter("pi-photo-album-s3")
 
 # # print(s3.list_album("albums/Shared/"))
 # # print(s3.list_album("albums/alee1246/"))
@@ -63,3 +63,18 @@
 # #     root = root.replace(f"{globals.BASE_DIR}/", "")
 # #     for name in files:
 # #         print(os.path.join(root, name))
+
+# import app.utils.offline as offline
+# import app.globals as globals
+
+# offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, [
+#     "2025-05-13T12:00:00Z,PUT,albums/test/image1.jpg",
+#     "2025-05-13T12:05:00Z,MOVE,albums/test/image2.jpg,albums/test/image3.jpg",
+#     "2025-05-13T12:10:00Z,DELETE,albums/test/image4.jpg"
+# ])
+
+# upload some files to s3 using the s3 adapter
+
+s3.insert("/home/user/pi-photo-album/albums/Shared/123.png", "albums/Shared/image1.jpg")
+s3.insert("/home/user/pi-photo-album/albums/Shared/123.png", "albums/Shared/image2.jpg")
+s3.insert("/home/user/pi-photo-album/albums/Shared/123.png", "albums/Shared/image3.jpg")
