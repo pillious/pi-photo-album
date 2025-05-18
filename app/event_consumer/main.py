@@ -4,6 +4,7 @@ import requests
 import time
 import json
 import botocore
+import os
 
 import app.globals as globals
 import app.utils.aws as aws
@@ -121,4 +122,6 @@ def handle_consumer_offline():
         offline.save_simple_fs_snapshot(globals.FS_SNAPSHOT_FILE)
 
 if __name__ == "__main__":
+    os.makedirs(globals.CONFIG_DIR, exist_ok=True)
+
     main()

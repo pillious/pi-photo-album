@@ -68,6 +68,9 @@ def save_offline_events(events_file: str, events: list[str]):
 
 def get_offline_events(events_file: str):
     events: list[dict[str, str]] = []
+    if not os.path.exists(events_file):
+        return events
+
     with open(events_file, 'r') as f:
         csv_file = csv.reader(f)
         for line in csv_file:
@@ -80,8 +83,9 @@ def get_offline_events(events_file: str):
     return events
 
 def clear_offline_events(events_file: str):
-    with open(events_file, 'w') as file:
-        pass
+    if os.path.exists(events_file):
+        with open(events_file, 'w') as file:
+            pass
 
 def get_snapshot_time():
     """
