@@ -4,20 +4,27 @@ set -euo pipefail
 # handle app termination
 cleanup() {
   echo "Stopping services..."
+
   echo "Killing slideshow"
-  sudo killall -15 fbi
+  sudo killall -15 fbi || true
+
+  echo "Killing display_slideshow.sh"
+  sudo pkill -15 -f display_slideshow.sh || true
+  
   if [[ -n "$EVENT_CONSUMER_PID" ]]; then
     echo "Killing event consumer (PID: $EVENT_CONSUMER_PID)"
-    kill -TERM "$EVENT_CONSUMER_PID"
-    wait "$EVENT_CONSUMER_PID"
+    kill -TERM "$EVENT_CONSUMER_PID" || true
+    wait "$EVENT_CONSUMER_PID" || true
   fi
+
   sleep 5   
   if [[ -n "$API_PID" ]]; then
     echo "Killing API (PID: $API_PID)"
-    kill -TERM "$API_PID"
-    wait "$API_PID"
+    kill -TERM "$API_PID" || true
+    wait "$API_PID" || true
   fi
-  echo "All services stopped."
+
+  echo "All services stopped." || true
   exit 0
 }
 

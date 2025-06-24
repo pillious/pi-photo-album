@@ -109,7 +109,7 @@ const handleCreateFolder = (e) => {
         return;
     }
 
-    updateFileSystem(fileSystemSnapshot, '', folderPath + folderName);
+    updateFileSystem(fileSystemSnapshot, '', folderPath + "/" + folderName);
 
     updateFileSystemUI();
     updateSettingsUI(settingsState);

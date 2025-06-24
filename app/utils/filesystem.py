@@ -44,6 +44,7 @@ def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = []):
     file_list = []
     for root, dirs, files in os.walk(dir_path):
         root = root.replace(dir_path + "/", "")
+        print(dir_path, root)
         if not allowed_prefixes or any(root.startswith(prefix) for prefix in allowed_prefixes):
             for file in files:
                 file_list.append(os.path.join(root, file))

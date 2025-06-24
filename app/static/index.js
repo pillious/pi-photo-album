@@ -1,7 +1,7 @@
 // Global Variables
 const DEFAULT_SETTINGS = {
     album: 'Shared',
-    isEnabled: true,
+    isEnabled: false,
     blend: 250,
     speed: 30,
     randomize: false,
@@ -21,6 +21,8 @@ const refreshUI = () => {
 
 // On page load
 document.addEventListener('DOMContentLoaded', () => {
+    settingsState = savedSettings || { ...DEFAULT_SETTINGS };
+
     console.log(savedSettings);
     console.log(fileSystemSnapshot);
     refreshUI();

@@ -46,6 +46,9 @@ def index():
     default_file_structure = filesystem.get_default_file_structure(username)
     file_structure = filesystem.get_file_structure(f"{globals.BASE_DIR}/albums")
 
+    # TODO: auto start slideshow if settings['isEnabled'] is True
+    # realistically, this should be done in the systemd service after the API starts up.
+
     # Ensure that the default file structure is always present.
     file_structure = utils.partial_dict_merge(file_structure, default_file_structure)
     return render_template('index.html', settings=settings, fileStructure=file_structure)
@@ -69,7 +72,9 @@ def save_settings():
     if 'randomize' not in settings or type(settings["randomize"]) is not bool:
         return jsonify({"status": "error", "message": "Invalid value for randomize"}), 400
 
-    cleanedSettings = {
+    prev_settings = slideshow.load_settings()
+
+    cleaned_settings = {
         "album": settings["album"],
         "isEnabled": settings["isEnabled"],
         "blend": utils.clamp(settings["blend"], 0, 1000),
@@ -77,14 +82,16 @@ def save_settings():
         "randomize": settings["randomize"]
     }
 
-    print(cleanedSettings)
-    slideshow.save_settings_to_file(cleanedSettings)
+    print(prev_settings)
+    print(cleaned_settings)
+    slideshow.save_settings_to_file(cleaned_settings)
 
-    # Update display with the new settings.
-    print(slideshow.stop_slideshow())
-    if cleanedSettings["isEnabled"]:
-        album_path = f"{globals.BASE_DIR}/albums/{cleanedSettings['album']}"
-        print(slideshow.start_slideshow(album_path, cleanedSettings["blend"], cleanedSettings["speed"], cleanedSettings["randomize"]))
+    slideshow.stop_slideshow()
+    album_path = f"{globals.BASE_DIR}/albums/{cleaned_settings['album']}"
+    slideshow.set_image_order(album_path, cleaned_settings["randomize"], False)
+    if cleaned_settings["isEnabled"]:
+        time.sleep(1)
+        slideshow.start_slideshow(album_path, cleaned_settings["blend"], cleaned_settings["speed"])
 
     return jsonify({"status": "ok"})
 

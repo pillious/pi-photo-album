@@ -46,6 +46,7 @@ const handleResetToDefault = () => {
 
 const updateSettingsUI = (newState) => {
     settingsState = { ...newState };
+    console.log(settingsState)
     const form = document.getElementById('slideshow-settings');
     form.elements.namedItem('isEnabled').value = settingsState.isEnabled ? 1 : 0;
     form.elements.namedItem('blend').value = settingsState.blend;
@@ -66,6 +67,7 @@ const updateSettingsUI = (newState) => {
         option.innerHTML = path;
         albumSelect.appendChild(option);
     }
+    // Set the selected album
     albumSelect.value = settingsState.album;
 };
 

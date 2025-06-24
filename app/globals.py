@@ -2,7 +2,7 @@ import os
 
 DEFAULT_SETTINGS = {
     "album": "Shared",
-    "isEnabled": True, 
+    "isEnabled": False, 
     "blend": 250, 
     "speed": 30, 
     "randomize": False
