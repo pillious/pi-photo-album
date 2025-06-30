@@ -74,6 +74,8 @@
                 <input type="checkbox" name="randomize" />
                 <div class="input-container"></div>
 
+                <button type="button" onclick="shuffleSlideshow()">Shuffle</button>
+
                 <button type="button" onclick="handleResetToDefault()">Reset to default</button>
                 <button type="submit">Save</button>
             </form>
@@ -100,8 +102,9 @@
 
             <hr />
 
-            <h3>File System</h3>
-            <button>Manual Resync</button>
+            <h3>File System</h3> 
+            <!-- TODO (if needed in the future): manual resync -->
+            <!-- <button>Manual Resync</button> --> 
             <button onClick="showCreateFolderDialog()">Create Album</button>
             <button onClick="toggleFileSelection()">Select</button>
             <!-- subcase of move -->
@@ -152,7 +155,7 @@
         <div class="overlay"></div>
         <div class="loading">
             <div class="loading-spinner"></div>
-            <div class="loading-caption">Loading... ASDF</div>
+            <div class="loading-caption">Loading...</div>
         </div>
     </body>
 </html>

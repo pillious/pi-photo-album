@@ -438,6 +438,12 @@ const handleDeleteFiles = async () => {
         (path) => `albums/${path}`
     );
 
+    // Confirmation dialog
+    if (!confirm('Are you sure? This will permanently delete the selected files.')) {
+        hideLoadingSpinner();
+        return;
+    }
+
     const resp = await fetch('/delete-images', {
         method: 'POST',
         headers: {
@@ -467,6 +473,7 @@ const handleRenameFile = async (e) => {
     const newFileName = secureFilename(fields.get('newName').trim());
 
     if (newFileName === '') {
+        hideLoadingSpinner();
         alert('File name cannot be empty');
         return;
     }

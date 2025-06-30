@@ -79,7 +79,7 @@ def save_settings():
         "isEnabled": settings["isEnabled"],
         "blend": utils.clamp(settings["blend"], 0, 1000),
         "speed": utils.clamp(settings["speed"], 0, 180),
-        "randomize": settings["randomize"]
+        "randomize": settings["randomize"],
     }
 
     print(prev_settings)
@@ -88,11 +88,25 @@ def save_settings():
 
     slideshow.stop_slideshow()
     album_path = f"{globals.BASE_DIR}/albums/{cleaned_settings['album']}"
-    slideshow.set_image_order(album_path, cleaned_settings["randomize"], False)
+    if (cleaned_settings["randomize"] != prev_settings["randomize"] 
+        or cleaned_settings["album"] != prev_settings["album"]):
+        slideshow.set_image_order(album_path, cleaned_settings["randomize"], False)
     if cleaned_settings["isEnabled"]:
         time.sleep(1)
         slideshow.start_slideshow(album_path, cleaned_settings["blend"], cleaned_settings["speed"])
 
+    return jsonify({"status": "ok"})
+
+@app.route('/shuffle', methods=['POST'])
+def shuffle():
+    settings = slideshow.load_settings()
+    if settings["album"]:
+        album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
+        slideshow.set_image_order(album_path, True, False)
+        if settings["isEnabled"]:
+            slideshow.stop_slideshow()
+            time.sleep(1)
+            slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
     return jsonify({"status": "ok"})
 
 @app.route('/upload-images', methods=['POST'])

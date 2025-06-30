@@ -152,6 +152,7 @@ const handleImagesUpload = async (e) => {
         filesInStaging = newFilesInStaging;
         updateFileSystemUI();
         updateFileStagingUI();
+        updateSettingsUI(settingsState);
     } catch (e) {
         console.error(e);
         alert('Failed to upload images.');

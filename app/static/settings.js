@@ -7,6 +7,7 @@ const handleSettingsSubmit = (e) => {
 
     // Confirmation dialog
     if (!confirm('Are you sure?')) {
+        hideLoadingSpinner();
         return;
     }
 
@@ -40,13 +41,12 @@ const handleSettingsSubmit = (e) => {
 };
 
 const handleResetToDefault = () => {
-    saveSettingsState(DEFAULT_SETTINGS);
     updateSettingsUI(DEFAULT_SETTINGS);
 };
 
 const updateSettingsUI = (newState) => {
     settingsState = { ...newState };
-    console.log(settingsState)
+    console.log(settingsState);
     const form = document.getElementById('slideshow-settings');
     form.elements.namedItem('isEnabled').value = settingsState.isEnabled ? 1 : 0;
     form.elements.namedItem('blend').value = settingsState.blend;
@@ -59,8 +59,8 @@ const updateSettingsUI = (newState) => {
     // Populate the album select dropdown
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
-    
-    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, true))
+
+    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, true));
     for (const path of albumPaths) {
         const option = document.createElement('option');
         option.value = path;
@@ -84,4 +84,18 @@ const saveSettingsState = async (state) => {
         console.error('Failed to save settings', respObj);
     }
     return respObj.status === 'ok';
+};
+
+const shuffleSlideshow = async () => {
+    showLoadingSpinnerWithCaption('Shuffling slideshow...');
+    const resp = await fetch('/shuffle', {
+        method: 'POST',
+    });
+    const respObj = await resp.json();
+    if (respObj.status !== 'ok') {
+        console.error('Failed to shuffle slideshow', respObj);
+    } else {
+        console.log('Slideshow shuffled successfully');
+    }
+    hideLoadingSpinner();
 };

@@ -101,4 +101,3 @@ trap cleanup SIGINT SIGTERM
 
 start_slideshow
 start_notifier
-
