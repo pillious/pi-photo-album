@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+python_path=$0
+
 # handle app termination
 cleanup() {
   echo "Stopping services..."
@@ -33,7 +35,7 @@ trap cleanup SIGINT SIGTERM
 
 # start event consumer
 echo "Starting event consumer service"
-python -m app.event_consumer.main &
+python_path -m app.event_consumer.main &
 EVENT_CONSUMER_PID=$!
 
 echo "sleep 5"
@@ -41,7 +43,7 @@ sleep 5
 
 # start API
 echo "Starting API"
-python -m app.server &
+python_path -m app.server &
 API_PID=$!
 
 wait

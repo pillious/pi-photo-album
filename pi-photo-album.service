@@ -1,0 +1,12 @@
+[Unit]
+Description=Pi Photo Album
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pi-photo-album/startup.sh /usr/local/bin/pi-photo-album/venv/bin/python
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
