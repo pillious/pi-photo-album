@@ -109,6 +109,7 @@
             <button onClick="toggleFileSelection()">Select</button>
             <!-- subcase of move -->
             <button class="file-system-tools" id="file-system-tools-rename" onClick="showRenameFileDialog()">Rename</button> 
+            <button class="file-system-tools" id="file-system-tools-copy" onClick="showCopyFilesDialog()">Copy</button>
             <button class="file-system-tools" id="file-system-tools-move" onClick="showMoveFilesDialog()">Move</button>
             <button class="file-system-tools" id="file-system-tools-delete" onClick="handleDeleteFiles()">Delete</button>
             <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
@@ -123,6 +124,19 @@
                 <input type="text" name="folderName" placeholder="My Album"/>
                 <div>
                     <button onclick="hideCreateFolderDialog()" type="button">Cancel</button>
+                    <button type="submit">Confirm</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="copy-files-dialog">
+            <form onsubmit="handleCopyFiles(event)">
+                <p>Copy to:</p>
+                <select name="folderPath">
+                    <option value="" disabled>-- Select an Album --</option>
+                </select>
+                <div>
+                    <button type="button" onclick="hideCopyFilesDialog()">Cancel</button>
                     <button type="submit">Confirm</button>
                 </div>
             </form>

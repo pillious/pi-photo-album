@@ -61,6 +61,18 @@ def save_simple_fs_snapshot(out_file: str):
         f.write("\n")
         f.write(json.dumps(file_paths))
 
+def create_offline_event(event: str, path: str, new_path = ''):
+    """
+    Create an offline event in the format:
+    ```
+    <timestamp>,<event>,<path>[,<new_path>]
+    ```
+    """
+    timestamp = str(datetime.datetime.now(datetime.timezone.utc))
+    if event == 'MOVE':
+        return f"{timestamp},{event},{path},{new_path}"
+    return f"{timestamp},{event},{path}"
+
 def save_offline_events(events_file: str, events: list[str]):
     with open(events_file, 'a') as f:
         for event in events:

@@ -5,17 +5,7 @@
 const showCreateFolderDialog = () => {
     document.getElementById('create-folder-dialog').showModal();
     showOverlay();
-
-    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false))
-
-    const select = document.getElementById('create-folder-dialog').querySelector('select');
-    select.innerHTML = select.firstElementChild.outerHTML;
-    for (const path of albumPaths) {
-        const option = document.createElement('option');
-        option.value = path;
-        option.innerHTML = path;
-        select.appendChild(option);
-    }
+    populateAlbumPaths('create-folder-dialog');
 };
 
 /**
@@ -29,6 +19,27 @@ const hideCreateFolderDialog = () => {
     form.reset();
 };
 
+/** 
+ * Shows the copy files dialog.
+ * The dialog is populated with the available album paths.
+ */
+const showCopyFilesDialog = () => {
+    document.getElementById('copy-files-dialog').showModal();
+    showOverlay();
+    populateAlbumPaths('copy-files-dialog');
+}
+
+/**
+ * Hides the copy files dialog and resets the form.
+ */
+const hideCopyFilesDialog = () => {
+    document.getElementById('copy-files-dialog').close();
+    hideOverlay();
+
+    const form = document.getElementById('copy-files-dialog').querySelector('form');
+    form.reset();
+}
+
 /**
  * Shows the move files dialog.
  * The dialog is populated with the available album paths.
@@ -36,17 +47,7 @@ const hideCreateFolderDialog = () => {
 const showMoveFilesDialog = () => {
     document.getElementById('move-files-dialog').showModal();
     showOverlay();
-    
-    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false))
-
-    const select = document.getElementById('move-files-dialog').querySelector('select');
-    select.innerHTML = select.firstElementChild.outerHTML;
-    for (const path of albumPaths) {
-        const option = document.createElement('option');
-        option.value = path;
-        option.innerHTML = path;
-        select.appendChild(option);
-    }
+    populateAlbumPaths('move-files-dialog');
 }
 
 /**
@@ -81,3 +82,16 @@ const hideRenameFileDialog = () => {
     const form = document.getElementById('rename-file-dialog').querySelector('form');
     form.reset();
 }
+
+const populateAlbumPaths = (dialogId) => {
+    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false));
+    const select = document.getElementById(dialogId).querySelector('select');
+    select.innerHTML = select.firstElementChild.outerHTML;
+    for (const path of albumPaths) {
+        const option = document.createElement('option');
+        option.value = path;
+        option.innerHTML = path;
+        select.appendChild(option);
+    }
+};
+

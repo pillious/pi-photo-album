@@ -76,6 +76,11 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
     chmod +x /usr/local/bin/pi-photo-album/startup.sh
     ```
 
+1. Also make the `display_slideshow.sh` script executable:
+    ```bash
+    chmod +x /usr/local/bin/pi-photo-album/app/display_slideshow.sh
+    ```
+
 ### Setup Python Virtual Environment:
 
 1. Create a virtual environment:
@@ -93,9 +98,14 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
     pip install -r /usr/local/bin/pi-photo-album/app/requirements.txt
     ```
 
+1. Exit the virtual environment:
+    ```bash
+    deactivate
+    ```
+
 ### Configure Auto-Start on Boot:
 
-1. Copy systemd service file to the Pi:
+1. Copy the app's systemd service file to the Pi:
     ```bash
     scp pi-photo-album.service pi@<raspberry_pi_ip>:~
     sudo mv pi-photo-album.service /etc/systemd/system/

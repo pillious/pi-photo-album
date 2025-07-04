@@ -1,20 +1,20 @@
 import json
-from flask import Flask, render_template, request, jsonify, Response
-from werkzeug.utils import secure_filename
-import uuid
 import os
 import queue
-import datetime
+import shutil
 import time
+import uuid
+from flask import Flask, render_template, request, jsonify, Response
+from werkzeug.utils import secure_filename
 
 from app.announcer import EventAnnouncer
 from app.cloud_adapters import s3_adapter
+import app.globals as globals
 import app.slideshow as slideshow
 import app.utils.aws as aws
 import app.utils.filesystem as filesystem
 import app.utils.offline as offline
 import app.utils.utils as utils
-import app.globals as globals
 
 utils.load_env([".env", globals.ENV_FILE])
 
@@ -45,10 +45,7 @@ def index():
     default_file_structure = filesystem.get_default_file_structure(username)
     file_structure = filesystem.get_file_structure(f"{globals.BASE_DIR}/albums")
 
-    # TODO: auto start slideshow if settings['isEnabled'] is True
-    # realistically, this should be done in the systemd service after the API starts up.
-
-    # Ensure that the default file structure is always present.
+    # Ensure that the default file structure is always present at a minimum.
     file_structure = utils.partial_dict_merge(file_structure, default_file_structure)
     return render_template('index.html', settings=settings, fileStructure=file_structure)
 
@@ -158,8 +155,8 @@ def upload_images():
             saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
 
     if not aws.ping(globals.S3_PING_URL):
-        timestamp = str(datetime.datetime.now(datetime.timezone.utc))
-        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, [f'{timestamp},PUT,{sf[1]}' for sf in saved_files])
+        offline_events = [offline.create_offline_event('PUT', sf[1]) for sf in saved_files]
+        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
     elif len(saved_files) > 0:
         # Bulk upload to cloud
         success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [filesystem.strip_base_dir(sf[1]) for sf in saved_files])
@@ -188,14 +185,16 @@ def delete_images():
     for f in files:
         filesystem.silentremove(filesystem.key_to_abs_path(f))
 
-    success, failed = cloud_adapter.delete_bulk(files)
-    print(success, failed)
-
-    if success:
+    if not aws.ping(globals.S3_PING_URL):
+        offline_events = [offline.create_offline_event('DELETE', sf) for sf in files]
+        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+    elif len(files) > 1:
+        success, failed = cloud_adapter.delete_bulk(files)
+        print(success, failed)
         message = json.dumps({"events": [{"event": "DELETE", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
-    return jsonify({"status": "ok", "failed": failed})
+    return jsonify({"status": "ok", "failed": []})
 
 @app.route('/move-images', methods=['POST'])
 @enforce_mime('application/json')
@@ -209,9 +208,12 @@ def move_images():
 
     # TODO: sanatize the paths & file name
 
+    files_to_move = []
     for file in files:
         if not filesystem.is_file_owner(file['oldPath']) or not filesystem.is_file_owner(file['newPath']):
             print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")
+            continue
+        if filesystem.key_to_abs_path(file['oldPath']) == filesystem.key_to_abs_path(file['newPath']):
             continue
 
         print(filesystem.key_to_abs_path(file['oldPath']), filesystem.key_to_abs_path(file['newPath']))
@@ -219,16 +221,58 @@ def move_images():
         new_path = filesystem.key_to_abs_path(file['newPath'])
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         os.rename(filesystem.key_to_abs_path(file['oldPath']), new_path)
+        files_to_move.append(file)
 
-    image_key_pairs = [(f['oldPath'], f['newPath']) for f in files]
-    success, failed = cloud_adapter.move_bulk(image_key_pairs)
-    print(success, failed)
-
-    if success:
+    if not aws.ping(globals.S3_PING_URL):
+        offline_events = [offline.create_offline_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
+        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+    elif len(files_to_move) > 0:
+        image_key_pairs = [(f['oldPath'], f['newPath']) for f in files_to_move]
+        success, failed = cloud_adapter.move_bulk(image_key_pairs)
+        print(success, failed)
         message = json.dumps({"events": [{"event": "MOVE", "path": sf[0], "newPath": sf[1]} for sf in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
     # failed: List[(old_path, new_path)]
+    return jsonify({"status": "ok", "failed": []})
+
+@app.route('/copy-images', methods=['POST'])
+@enforce_mime('application/json')
+def copy_images():
+    req_json: dict | None = request.json
+    if not req_json:
+        return jsonify({"status": "ok", "failed": []})
+    files = req_json.get('files', [])
+    if not files:
+        return jsonify({"status": "ok", "failed": []})
+
+    # TODO: sanatize the paths & file name
+
+    files_to_copy = []
+    for file in files:
+        if not filesystem.is_file_owner(file['oldPath']) or not filesystem.is_file_owner(file['newPath']):
+            print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")
+            continue
+        if filesystem.key_to_abs_path(file['oldPath']) == filesystem.key_to_abs_path(file['newPath']):
+            continue
+
+        print(filesystem.key_to_abs_path(file['oldPath']), filesystem.key_to_abs_path(file['newPath']))
+        print("-------------")
+        new_path = filesystem.key_to_abs_path(file['newPath'])
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        shutil.copyfile(filesystem.key_to_abs_path(file['oldPath']), new_path)
+        files_to_copy.append(file)
+
+    if not aws.ping(globals.S3_PING_URL):
+        offline_events = [offline.create_offline_event('PUT', sf['newPath']) for sf in files_to_copy]
+        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+    elif len(files_to_copy) > 0:
+        image_keys = [f['newPath'] for f in files_to_copy]
+        success, failure = cloud_adapter.insert_bulk([filesystem.key_to_abs_path(k) for k in image_keys], image_keys)
+        print(success, failure)
+        message = json.dumps({"events": [{"event": "PUT", "path": s} for s in success], "sender": os.getenv('USERNAME')})
+        cloud_adapter.insert_queue(message)
+
     return jsonify({"status": "ok", "failed": []})
 
 @app.route('/receive-events', methods=['POST'])
@@ -445,5 +489,7 @@ if __name__ == '__main__':
     os.makedirs(globals.CONFIG_DIR, exist_ok=True)
     os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
     os.makedirs(globals.TMP_STORAGE_DIR, exist_ok=True)
+
+    # TODO: auto start slideshow if settings['isEnabled'] is True
 
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))

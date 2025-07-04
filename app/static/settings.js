@@ -72,6 +72,10 @@ const updateSettingsUI = (newState) => {
 };
 
 const saveSettingsState = async (state) => {
+    if (!confirm('Confirm updated settings?')) {
+        return false;
+    }
+
     const resp = await fetch('/save-settings', {
         method: 'POST',
         headers: {
@@ -87,6 +91,10 @@ const saveSettingsState = async (state) => {
 };
 
 const shuffleSlideshow = async () => {
+    if (!confirm('Confirm shuffle?')) {
+        return;
+    }
+
     showLoadingSpinnerWithCaption('Shuffling slideshow...');
     const resp = await fetch('/shuffle', {
         method: 'POST',
