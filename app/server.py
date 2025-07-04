@@ -86,7 +86,8 @@ def save_settings():
     album_path = f"{globals.BASE_DIR}/albums/{cleaned_settings['album']}"
     if (cleaned_settings["randomize"] != prev_settings["randomize"] 
         or cleaned_settings["album"] != prev_settings["album"]):
-        slideshow.set_image_order(album_path, cleaned_settings["randomize"], False)
+        # Must be set to recursive b/c inotifywait is setup to watch recursively.
+        slideshow.set_image_order(album_path, cleaned_settings["randomize"], True)
     if cleaned_settings["isEnabled"]:
         time.sleep(1)
         slideshow.start_slideshow(album_path, cleaned_settings["blend"], cleaned_settings["speed"])
@@ -98,7 +99,8 @@ def shuffle():
     settings = slideshow.load_settings()
     if settings["album"]:
         album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
-        slideshow.set_image_order(album_path, True, False)
+        # Must be set to recursive b/c inotifywait is setup to watch recursively.
+        slideshow.set_image_order(album_path, True, True)
         if settings["isEnabled"]:
             slideshow.stop_slideshow()
             time.sleep(1)
