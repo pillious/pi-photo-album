@@ -492,6 +492,10 @@ if __name__ == '__main__':
     os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
     os.makedirs(globals.TMP_STORAGE_DIR, exist_ok=True)
 
-    # TODO: auto start slideshow if settings['isEnabled'] is True
+    # Starts slideshow on startup if the enabled in the settings.
+    settings = slideshow.load_settings()
+    if settings["isEnabled"]:
+        album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
+        slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
 
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))

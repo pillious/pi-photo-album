@@ -197,9 +197,8 @@ const handleMoveFiles = async (e) => {
                 )
             );
 
-        if (failedOldPaths.length > 0) {
+        if (failedOldPaths.length > 0)
             alert(`Failed to move the following files:\n${failedOldPaths.join('\n')}`);
-        }
         updateFileSystemUI();
     }
 
@@ -238,6 +237,8 @@ const handleDeleteFiles = async () => {
     filePathsToDelete.forEach((path) =>
         updateFileSystem(fileSystemSnapshot, removeAlbumsPrefix(path), '')
     );
+
+    if (failed.length > 0) alert(`Failed to delete the following files:\n${failed.join('\n')}`);
     if (filePathsToDelete.length > 0) updateFileSystemUI();
 
     toggleFileSelection();
@@ -321,7 +322,8 @@ const handleRenameFile = async (e) => {
                 )
             );
 
-        // TODO: alert the user if any files failed to move
+        if (failedOldPaths.length > 0)
+            alert(`Failed to move the following files:\n${failedOldPaths.join('\n')}`);
         updateFileSystemUI();
     }
 
