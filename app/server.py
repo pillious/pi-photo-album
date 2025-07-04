@@ -1,6 +1,5 @@
 import json
 from flask import Flask, render_template, request, jsonify, Response
-from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import uuid
 import os
@@ -17,7 +16,7 @@ import app.utils.offline as offline
 import app.utils.utils as utils
 import app.globals as globals
 
-load_dotenv()
+utils.load_env([".env", globals.ENV_FILE])
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH

@@ -1,5 +1,4 @@
 import botocore.exceptions
-from dotenv import load_dotenv
 import requests
 import time
 import json
@@ -7,12 +6,12 @@ import botocore
 import os
 
 import app.globals as globals
+import app.utils.utils as utils
 import app.utils.aws as aws
 import app.utils.offline as offline
 from app.event_consumer.consumer import SQSQueueConsumer
 
-
-load_dotenv()
+utils.load_env([".env", globals.ENV_FILE])
 
 def main():
     sqs_consumer = SQSQueueConsumer()

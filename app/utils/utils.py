@@ -1,6 +1,6 @@
 import subprocess
-from typing import List
 import os
+from dotenv import load_dotenv
 from werkzeug.datastructures import FileStorage
 
 import app.globals as globals
@@ -25,11 +25,11 @@ def handle_duplicate_file(folder: str, name: str):
         loc = f"{folder}/{name_parts[0]}_{count}.{name_parts[1]}"
     return loc
 
-def multiple_heif_to_jpg(heif_paths: List[str], jpg_paths: List[str], quality: int, cleanup: bool):
+def multiple_heif_to_jpg(heif_paths: list[str], jpg_paths: list[str], quality: int, cleanup: bool):
     """
     Convert multiple HEIF/HEIC files to JPG in parallel using the `heif-convert` command.
     """
-    procs: List[subprocess.Popen[bytes]] = []
+    procs: list[subprocess.Popen[bytes]] = []
 
     for heif_path, jpg_path in zip(heif_paths, jpg_paths):
         os.makedirs(os.path.dirname(heif_path), exist_ok=True)
@@ -65,3 +65,13 @@ def partial_dict_merge(d: dict, u: dict):
         elif k not in d:
             d[k] = v
     return d
+
+def load_env(dirs: list[str]):
+    for d in dirs:
+        d = os.path.abspath(os.path.expandvars(d))
+        if os.path.exists(d):
+            load_dotenv(d)
+            print(f"Loaded env vars from {d}.")
+            return
+
+    print(f"Failed to load env vars from {dirs}.")

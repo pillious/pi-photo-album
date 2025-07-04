@@ -10,6 +10,7 @@ DEFAULT_SETTINGS = {
 
 CONFIG_DIR = os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album'))
 SETTINGS_FILE = CONFIG_DIR + "/settings.json"
+ENV_FILE = CONFIG_DIR + "/.env"
 LAST_POLL_FILE = CONFIG_DIR + "/last_poll.txt"
 FS_SNAPSHOT_FILE = CONFIG_DIR + "/fs_snapshot.json"
 OFFLINE_EVENTS_FILE = CONFIG_DIR + "/events.csv"

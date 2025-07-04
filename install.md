@@ -56,6 +56,11 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
     mkdir -p /usr/local/bin/pi-photo-album
     ```
 
+1. Give non-root ownership to dir:
+    ```bash
+    sudo chown -R $USER:$USER /usr/local/bin/pi-photo-album
+    ```
+
 1. Copy app to the Pi:
     ```bash
     scp -r app/ pi@<raspberry_pi_ip>:/usr/local/bin/pi-photo-album
@@ -63,12 +68,12 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
 
 1. Copy startup script to the Pi:
     ```bash
-    scp startup.sh pi@<raspberry_pi_ip>:/usr/local/bin/pi-photo-album
+    scp startup.sh pi@<raspberry_pi_ip>:/usr/local/bin/pi-photo-album/
     ```
 
 1. Make the startup script executable:
     ```bash
-    "chmod +x /usr/local/bin/pi-photo-album/startup.sh"
+    chmod +x /usr/local/bin/pi-photo-album/startup.sh
     ```
 
 ### Setup Python Virtual Environment:
@@ -92,14 +97,21 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
 
 1. Copy systemd service file to the Pi:
     ```bash
-    scp pi-photo-album.service pi@<raspberry_pi_ip>:/etc/systemd/system/
+    scp pi-photo-album.service pi@<raspberry_pi_ip>:~
+    sudo mv pi-photo-album.service /etc/systemd/system/
+    ```
+
+1. Enable the service to start on boot:
+    ```bash
+    sudo systemctl enable pi-photo-album
     ```
 
 ### Setup Environment Variable File:
 
 1. Create env file:
     ```bash
-    touch /usr/local/bin/pi-photo-album/app/.env
+    mkdir -p ~/.config/pi-photo-album
+    touch ~/.config/pi-photo-album/.env
     ```
 
 1. Add the following environment variables to the `.env` file:
@@ -117,7 +129,7 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
     PUSH_QUEUE_ROLE=
     RECEIVE_EVENT_QUEUE_URL=
 
-    API_PORT=<port_number>
+    API_PORT=<port_number (e.g. 5000)>
     ```
 
 ### Start the Application:

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-python_path=$0
+PYTHON_PATH=${1:-$(which python)}
 
 # handle app termination
 cleanup() {
@@ -35,7 +35,7 @@ trap cleanup SIGINT SIGTERM
 
 # start event consumer
 echo "Starting event consumer service"
-python_path -m app.event_consumer.main &
+PYTHONPATH=/usr/local/bin/pi-photo-album "$PYTHON_PATH" -m app.event_consumer.main &
 EVENT_CONSUMER_PID=$!
 
 echo "sleep 5"
@@ -43,7 +43,7 @@ sleep 5
 
 # start API
 echo "Starting API"
-python_path -m app.server &
+PYTHONPATH=/usr/local/bin/pi-photo-album "$PYTHON_PATH" -m app.server &
 API_PID=$!
 
 wait
