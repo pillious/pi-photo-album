@@ -97,7 +97,7 @@ const handleCreateFolder = (e) => {
     e.preventDefault();
 
     const fields = new FormData(e.target);
-    const folderPath = fields.get('folderPath');
+    const folderPath = securePath(fields.get('folderPath'));
     const folderName = secureFilename(fields.get('folderName').trim());
 
     if (folderPath === '') {
@@ -213,7 +213,7 @@ const handleDeleteFiles = async () => {
     showLoadingSpinnerWithCaption('Deleting file(s)..');
 
     let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
-        (path) => `albums/${path}`
+        (path) => securePath(`albums/${path}`)
     );
 
     // Confirmation dialog
@@ -271,8 +271,8 @@ const handleRenameFile = async (e) => {
         const fileId = selectedFilePaths[0].substring(idx + 1).split('.', 1)[0];
         const fileExt = getFileExtension(selectedFilePaths[0]);
         pathPairs.push({
-            oldPath: `albums/${selectedFilePaths[0]}`,
-            newPath: `albums/${folderPath}${fileId}.${newFileName}.${fileExt}`,
+            oldPath: securePath(`albums/${selectedFilePaths[0]}`),
+            newPath: securePath(`albums/${folderPath}${fileId}.${newFileName}.${fileExt}`),
         });
     } else {
         // Case: renaming a folder
@@ -289,8 +289,8 @@ const handleRenameFile = async (e) => {
         pathPairs = selectedFilePaths.map((path) => {
             if (path.startsWith(oldFolderPrefix))
                 return {
-                    oldPath: `albums/${path}`,
-                    newPath: `albums/${newFolderPrefix + path.slice(oldFolderPrefix.length)}`,
+                    oldPath: securePath(`albums/${path}`),
+                    newPath: securePath(`albums/${newFolderPrefix + path.slice(oldFolderPrefix.length)}`),
                 };
         });
     }
@@ -365,15 +365,15 @@ const generatePathPairs = (folderPath) => {
         for (const [key, val] of Object.entries(prefixReplace)) {
             if (path.startsWith(key)) {
                 return {
-                    oldPath: `albums/${path}`,
-                    newPath: `albums/${val}${path.substring(key.length)}`,
+                    oldPath: securePath(`albums/${path}`),
+                    newPath: securePath(`albums/${val}${path.substring(key.length)}`),
                 };
             }
         }
         const fileName = path.substring(path.lastIndexOf('/') + 1);
         return {
-            oldPath: `albums/${path}`,
-            newPath: `albums/${folderPath}/${fileName}`,
+            oldPath: securePath(`albums/${path}`),
+            newPath: securePath(`albums/${folderPath}/${fileName}`),
         };
     });
 

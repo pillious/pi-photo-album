@@ -2,8 +2,7 @@ import subprocess
 import os
 from dotenv import load_dotenv
 from werkzeug.datastructures import FileStorage
-
-import app.globals as globals
+from werkzeug.utils import secure_filename
 
 ### General Utils
 def clamp(val, min, max):
@@ -75,3 +74,6 @@ def load_env(dirs: list[str]):
             return
 
     print(f"Failed to load env vars from {dirs}.")
+
+def secure_path(path: str) -> str:
+    return "/".join([secure_filename(p) for p in path.split('/')])

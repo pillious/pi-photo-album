@@ -126,7 +126,7 @@ def upload_images():
     album_paths = request.files.keys()
     print(album_paths)
     # Sanatize file paths
-    album_paths = ["/".join([secure_filename(p) for p in album_path.split('/')]) for album_path in album_paths]   
+    album_paths = [utils.secure_path(album_path) for album_path in album_paths]   
     for album_path in album_paths:
         images = request.files.getlist(album_path)
         for image in images:
@@ -185,6 +185,7 @@ def delete_images():
         return jsonify({"status": "ok", "failed": []})
     
     for f in files:
+        f = utils.secure_path(f)
         filesystem.silentremove(filesystem.key_to_abs_path(f))
 
     if not aws.ping(globals.S3_PING_URL):
@@ -208,10 +209,10 @@ def move_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
-    # TODO: sanatize the paths & file name
-
     files_to_move = []
     for file in files:
+        file['oldPath'] = utils.secure_path(file['oldPath'])
+        file['newPath'] = utils.secure_path(file['newPath'])
         if not filesystem.is_file_owner(file['oldPath']) or not filesystem.is_file_owner(file['newPath']):
             print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")
             continue
@@ -248,10 +249,10 @@ def copy_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
-    # TODO: sanatize the paths & file name
-
     files_to_copy = []
     for file in files:
+        file['oldPath'] = utils.secure_path(file['oldPath'])
+        file['newPath'] = utils.secure_path(file['newPath'])
         if not filesystem.is_file_owner(file['oldPath']) or not filesystem.is_file_owner(file['newPath']):
             print(f"File is not owned by the user. {file['oldPath']} -> {file['newPath']}")
             continue

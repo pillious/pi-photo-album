@@ -83,6 +83,10 @@ const secureFilename = (filename) => {
     return filename;
 };
 
+const securePath = (path) => {
+    return path.split('/').map(part => secureFilename(part)).join('/').
+}
+
 /**
  *
  *  A fast and simple 53-bit string hash function with decent collision resistance.
