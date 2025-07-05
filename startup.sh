@@ -8,10 +8,10 @@ cleanup() {
   echo "Stopping services..."
 
   echo "Killing slideshow"
-  sudo killall -15 fbi || true
+  killall -15 fbi || true
 
   echo "Killing display_slideshow.sh"
-  sudo pkill -15 -f display_slideshow.sh || true
+  pkill -15 -f display_slideshow.sh || true
   
   if [[ -n "$EVENT_CONSUMER_PID" ]]; then
     echo "Killing event consumer (PID: $EVENT_CONSUMER_PID)"
