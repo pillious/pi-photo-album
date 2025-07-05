@@ -516,6 +516,7 @@ const toggleFileSelection = () => {
         setToolStates(0);
     } else {
         selectedFiles.albums = {};
+        selectedFolders.albums = {};
         setToolStates(-userSelectionCount);
     }
     const selectItems = document

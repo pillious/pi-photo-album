@@ -187,6 +187,7 @@ def delete_images():
     for f in files:
         f = utils.secure_path(f)
         filesystem.silentremove(filesystem.key_to_abs_path(f))
+        filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
 
     if not aws.ping(globals.S3_PING_URL):
         offline_events = [offline.create_offline_event('DELETE', sf) for sf in files]
@@ -220,10 +221,10 @@ def move_images():
             continue
 
         print(filesystem.key_to_abs_path(file['oldPath']), filesystem.key_to_abs_path(file['newPath']))
-        print("-------------")
         new_path = filesystem.key_to_abs_path(file['newPath'])
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         os.rename(filesystem.key_to_abs_path(file['oldPath']), new_path)
+        filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(file['oldPath'])))
         files_to_move.append(file)
 
     if not aws.ping(globals.S3_PING_URL):

@@ -66,3 +66,29 @@ def silentremove(path: str):
         os.remove(path)
     except FileNotFoundError:
         pass
+
+def remove_albums_prefix(path: str):
+    """
+    Removes the 'albums/' prefix from the path if it exists.
+    """
+    if path.startswith('albums/'):
+        return path[7:]
+    return path
+
+def remove_dirs(base: str, path: str):
+    """
+    Removes all empty dirs in the path, up to the base directory.
+
+    - base format: `/.../.../albums`
+    - path format: `[Shared|username]/.../.../<folder>`
+
+    This won't remove the [Shared|username] folder even if it is empty.
+    """
+    dirs = path.split('/')
+    first = dirs.pop(0)
+    while len(dirs) > 0:
+        try:
+            os.rmdir(os.path.join(base, first, '/'.join(dirs)))
+        except Exception:
+            break
+        dirs.pop()

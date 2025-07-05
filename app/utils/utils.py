@@ -77,3 +77,4 @@ def load_env(dirs: list[str]):
 
 def secure_path(path: str) -> str:
     return "/".join([secure_filename(p) for p in path.split('/')])
+

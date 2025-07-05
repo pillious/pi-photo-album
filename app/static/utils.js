@@ -84,7 +84,7 @@ const secureFilename = (filename) => {
 };
 
 const securePath = (path) => {
-    return path.split('/').map(part => secureFilename(part)).join('/').
+    return path.split('/').map(part => secureFilename(part)).join('/')
 }
 
 /**
