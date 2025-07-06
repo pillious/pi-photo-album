@@ -83,6 +83,30 @@ const hideRenameFileDialog = () => {
     form.reset();
 }
 
+/**
+ * Shows the preview image dialog with the given image URL.
+ */
+const showPreviewImageDialog = (previewImageUrl) =>{
+    const dialog = document.getElementById('preview-image-dialog');
+    dialog.showModal();
+    showOverlay();
+
+    const img = dialog.querySelector('img');
+    img.src = previewImageUrl;
+}
+
+/**
+ * Hides the preview image dialog
+ */
+const hidePreviewImageDialog = () => {
+    const dialog = document.getElementById('preview-image-dialog');
+    dialog.close();
+    hideOverlay();
+
+    const img = dialog.querySelector('img');
+    img.src = '';
+}
+
 const populateAlbumPaths = (dialogId) => {
     const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false));
     const select = document.getElementById(dialogId).querySelector('select');
@@ -94,4 +118,3 @@ const populateAlbumPaths = (dialogId) => {
         select.appendChild(option);
     }
 };
-

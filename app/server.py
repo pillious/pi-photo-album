@@ -4,8 +4,9 @@ import queue
 import shutil
 import time
 import uuid
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, send_from_directory
 from werkzeug.utils import secure_filename
+from urllib.parse import unquote, urlparse
 
 from app.announcer import EventAnnouncer
 from app.cloud_adapters import s3_adapter
@@ -484,6 +485,22 @@ def resync():
 
     return jsonify({"status": "ok"})
 
+@app.route('/preview', methods=['GET'])
+def preview():
+    image_path = request.args.get('image')
+    if not image_path:
+        return jsonify({"status": "error", "message": "Invalid image path"}), 400
+    
+    image_path = unquote(image_path)
+
+    # Reject non-local paths.
+    if urlparse(image_path).scheme != '' or urlparse(image_path).netloc != '':
+        return jsonify({"status": "error", "message": "Invalid image path"}), 400
+
+    if not os.path.exists(filesystem.key_to_abs_path(image_path)):
+        return jsonify({"status": "error", "message": "Image not found"}), 404
+
+    return send_from_directory(globals.BASE_DIR, image_path)
 
 @app.route('/health', methods=['GET'])
 def health():

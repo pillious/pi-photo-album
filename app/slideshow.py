@@ -2,8 +2,6 @@ import os
 import json
 import random
 import subprocess
-import signal
-import time
 
 import app.globals as globals
 

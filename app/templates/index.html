@@ -112,7 +112,7 @@
             <button class="file-system-tools" id="file-system-tools-copy" onClick="showCopyFilesDialog()">Copy</button>
             <button class="file-system-tools" id="file-system-tools-move" onClick="showMoveFilesDialog()">Move</button>
             <button class="file-system-tools" id="file-system-tools-delete" onClick="handleDeleteFiles()">Delete</button>
-            <ul data-fs-tree-=""> </ul> <!-- the trailing '-' is intentional -->
+            <ul data-fs-tree-="" class="file-system"> </ul> <!-- the trailing '-' is intentional -->
         </main>
 
         <dialog id="create-folder-dialog">
@@ -164,6 +164,13 @@
                     <button type="submit">Confirm</button>
                 </div>
             </form>
+        </dialog>
+
+        <dialog id="preview-image-dialog">
+            <div>
+                <img />
+                <button type="button" onclick="hidePreviewImageDialog()">Close</button>
+            </div>
         </dialog>
 
         <div class="overlay"></div>

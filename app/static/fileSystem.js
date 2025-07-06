@@ -73,9 +73,11 @@ const updateFileSystemUI = () => {
                 stack.push([val, parent, key]);
             } else {
                 const fileLi = document.createElement('li');
+                fileLi.classList.add('album-image');
                 fileLi.setAttribute('data-album-path', currPath);
-                fileName = document.createElement('span');
+                const fileName = document.createElement('span');
                 fileName.innerHTML = key.substring(key.indexOf('.') + 1);
+                fileName.onclick = () => getImagePreview(currPath);
                 selectItem.onchange = (e) => {
                     handleSelectItem(e, currPath, true);
                 };
@@ -86,6 +88,21 @@ const updateFileSystemUI = () => {
             }
         }
     }
+};
+
+const getImagePreview = async (path) => {
+    path = `albums/${path}`;
+    const resp = await fetch(`/preview?image=${encodeURIComponent(path)}`);
+
+    const contentType = resp.headers.get('Content-Type');
+    if (!contentType || !contentType.startsWith('image/')) {
+        console.log(await resp.json())
+    }
+
+    const image = await resp.blob();
+    const imageUrl = URL.createObjectURL(image);
+    
+    showPreviewImageDialog(imageUrl);
 };
 
 /**
@@ -212,8 +229,8 @@ const handleMoveFiles = async (e) => {
 const handleDeleteFiles = async () => {
     showLoadingSpinnerWithCaption('Deleting file(s)..');
 
-    let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map(
-        (path) => securePath(`albums/${path}`)
+    let filePathsToDelete = flattenObjectToPaths(selectedFiles.albums).map((path) =>
+        securePath(`albums/${path}`)
     );
 
     // Confirmation dialog
@@ -290,7 +307,9 @@ const handleRenameFile = async (e) => {
             if (path.startsWith(oldFolderPrefix))
                 return {
                     oldPath: securePath(`albums/${path}`),
-                    newPath: securePath(`albums/${newFolderPrefix + path.slice(oldFolderPrefix.length)}`),
+                    newPath: securePath(
+                        `albums/${newFolderPrefix + path.slice(oldFolderPrefix.length)}`
+                    ),
                 };
         });
     }

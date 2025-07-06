@@ -58,6 +58,24 @@
     font-size: 0.75rem;
 }
 
+.file-system-tools {
+    display: none;
+}
+
+.album-name {
+    list-style-image: url('/static/images/folder-icon.png');
+}
+
+.album-image {
+    list-style-image: url('/static/images/image-icon.png');
+}
+
+.album-image span {
+    cursor: pointer;
+    color: #6666db;
+    text-decoration: underline;
+}
+
 #create-folder-dialog {
     display: hidden;
     position: absolute;
@@ -67,8 +85,14 @@
     margin: 0;
 }
 
-.file-system-tools {
-    display: none;
+#preview-image-dialog div{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#preview-image-dialog img {
+    width: min(800px, 80vw);
 }
 
 .loading {
