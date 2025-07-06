@@ -22,7 +22,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
 app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
 
-cloud_adapter = s3_adapter.S3Adapter('pi-photo-album-s3')
+cloud_adapter = s3_adapter.S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album'))
 event_announcer = EventAnnouncer()
 
 def enforce_mime(mime_type):

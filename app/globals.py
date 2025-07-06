@@ -16,7 +16,7 @@ FS_SNAPSHOT_FILE = CONFIG_DIR + "/fs_snapshot.json"
 OFFLINE_EVENTS_FILE = CONFIG_DIR + "/events.csv"
 ACTIVE_SLIDESHOW_FILE = CONFIG_DIR + "/active_slideshow.txt"
 
-BASE_DIR = os.path.abspath(os.path.expandvars("$HOME/pi-photo-album"))
+BASE_DIR = os.path.abspath(os.path.expandvars(os.getenv('PHOTO_STORAGE_PATH', '$HOME/pi-photo-album')))
 TMP_STORAGE_DIR = BASE_DIR + "/tmp"
 
 MAX_CONTENT_LENGTH = 128 * 1024 * 1024 # 128MB
