@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>PI Photo Album</title>
 
-        <link rel="stylesheet" href="/static/index.css" />
+        <link rel="stylesheet" href="/static/styles/index.css" />
 
         <script>
             // These are coming from Flask.
@@ -13,17 +13,17 @@
             // {folderName: {...} | fileName: "", ...}
             const fileSystemSnapshot = {{ fileStructure|tojson }}; 
         </script> 
-        <script type="text/javascript" src="/static/index.js"></script>
-        <script type="text/javascript" src="/static/settings.js"></script>
-        <script type="text/javascript" src="/static/imageUploader.js"></script>
-        <script type="text/javascript" src="/static/fileSystem.js"></script>
-        <script type="text/javascript" src="/static/utils.js"></script>
-        <script type="text/javascript" src="/static/dialogs.js"></script>
-        <script type="text/javascript" src="/static/overlay.js"></script>
+        <script type="text/javascript" src="/static/scripts/index.js"></script>
+        <script type="text/javascript" src="/static/scripts/settings.js"></script>
+        <script type="text/javascript" src="/static/scripts/imageUploader.js"></script>
+        <script type="text/javascript" src="/static/scripts/fileSystem.js"></script>
+        <script type="text/javascript" src="/static/scripts/utils.js"></script>
+        <script type="text/javascript" src="/static/scripts/dialogs.js"></script>
+        <script type="text/javascript" src="/static/scripts/overlay.js"></script>
     </head>
     <body>
         <main>
-            <h2>PI Photo Album</h1>
+            <h2>PI Photo Album</h2>
             <h3>Slideshow Settings</h3>
             <form id="slideshow-settings" onsubmit="handleSettingsSubmit(event)">
                 <div class="input-label">Album</div>
