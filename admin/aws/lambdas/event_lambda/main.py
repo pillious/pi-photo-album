@@ -113,7 +113,6 @@ def publish(sns_client, message: str, message_group_id: str, message_attributes)
     """
     Publish a message to the SNS topic.
     """
-    print(message, message_group_id, message_attributes)
     sns_client.publish(
         TopicArn=os.environ['SNS_TOPIC_ARN'], 
         Message=message, 
