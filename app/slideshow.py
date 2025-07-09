@@ -17,8 +17,6 @@ def start_slideshow(album: str, blend: int, speed: int):
     """
     global slideshow_proc
 
-    print(album, blend, speed)
-
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "display_slideshow.sh")
     cmd = [script_path, album, str(speed), str(blend), globals.ACTIVE_SLIDESHOW_FILE]
     slideshow_proc = subprocess.Popen(cmd)
@@ -47,7 +45,6 @@ def save_settings_to_file(settings):
         json.dump(settings, f)
 
 def set_image_order(album: str, randomize:bool, recursive: bool):
-    print(album, randomize, recursive)
     file_names: list[str] = []
     
     for root, dirs, files in os.walk(album):
@@ -59,6 +56,5 @@ def set_image_order(album: str, randomize:bool, recursive: bool):
     if randomize:
         random.shuffle(file_names)
 
-    print(file_names)
     with open(globals.ACTIVE_SLIDESHOW_FILE, 'w') as f:
         f.write('\n'.join(file_names))

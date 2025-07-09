@@ -74,7 +74,6 @@ class SQSQueueConsumer(QueueConsumer):
                     QueueUrl=os.getenv('RECEIVE_EVENT_QUEUE_URL'),
                     Entries=entries
                 )
-                print(f"Delete response: {response}") # DEBUG
                 for entry in response.get('Successful', []):
                     del id_to_rh[entry['Id']]
                 failed = response.get('Failed', [])

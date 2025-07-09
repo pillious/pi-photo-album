@@ -16,8 +16,6 @@ const handleFileUploadChange = (e) => {
     // Clear the invisible file input after getting the files.
     e.target.value = null;
 
-    console.log(files);
-    console.log(filesInStaging);
     updateFileStagingUI();
 };
 
@@ -25,7 +23,6 @@ const updateFileStagingUI = () => {
     const stagingList = document.getElementById('image-staging-list');
     stagingList.innerHTML = '';
 
-    console.log(filesInStaging);
     const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false));
     for (const [id, { album, fileName }] of Object.entries(filesInStaging)) {
         const listItem = createStagedFileUI(fileName, album, albumPaths);
@@ -126,9 +123,10 @@ const handleImagesUpload = async (e) => {
             body: data,
         });
         if (!resp.ok) throw new Error('Failed to upload images');
+
         const respData = await resp.json();
-        console.log(respData);
         if (respData.status !== 'ok') throw new Error('Failed to upload images');
+
         const newFilesInStaging = {};
         for (const failed of respData.failed ?? []) {
             if (failed in filesInStaging) {

@@ -32,7 +32,6 @@ const handleSettingsSubmit = (e) => {
         const saved = saveSettingsState(newState);
         if (saved) {
             updateSettingsUI(newState);
-            console.log('Saved: ', newState);
         } else {
             alert('Failed to save settings');
         }
@@ -46,7 +45,7 @@ const handleResetToDefault = () => {
 
 const updateSettingsUI = (newState) => {
     settingsState = { ...newState };
-    console.log(settingsState);
+
     const form = document.getElementById('slideshow-settings');
     form.elements.namedItem('isEnabled').value = settingsState.isEnabled ? 1 : 0;
     form.elements.namedItem('blend').value = settingsState.blend;
@@ -102,8 +101,7 @@ const shuffleSlideshow = async () => {
     const respObj = await resp.json();
     if (respObj.status !== 'ok') {
         console.error('Failed to shuffle slideshow', respObj);
-    } else {
-        console.log('Slideshow shuffled successfully');
     }
+
     hideLoadingSpinner();
 };

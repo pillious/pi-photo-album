@@ -146,7 +146,6 @@ const handleCopyFiles = async (e) => {
     }
 
     const pathPairs = generatePathPairs(folderPath);
-    console.log(pathPairs);
 
     if (pathPairs.length > 0) {
         const resp = await fetch('/copy-images', {
@@ -159,7 +158,6 @@ const handleCopyFiles = async (e) => {
 
         const data = await resp.json();
         const failedOldPaths = (data.failed || []).map((path) => path[0]);
-        console.log(data);
 
         pathPairs
             .filter((pair) => !failedOldPaths.includes(pair.oldPath))
@@ -188,7 +186,6 @@ const handleMoveFiles = async (e) => {
     }
 
     const pathPairs = generatePathPairs(folderPath);
-    console.log(pathPairs);
 
     if (pathPairs.length > 0) {
         const resp = await fetch('/move-images', {
@@ -201,8 +198,6 @@ const handleMoveFiles = async (e) => {
 
         const data = await resp.json();
         const failedOldPaths = (data.failed || []).map((path) => path[0]);
-
-        console.log(data);
 
         pathPairs
             .filter((pair) => !failedOldPaths.includes(pair.oldPath))
@@ -277,9 +272,6 @@ const handleRenameFile = async (e) => {
 
     const selectedFilePaths = flattenObjectToPaths(selectedFiles.albums);
 
-    console.log(selectedFolders);
-    console.log(selectedFilePaths);
-
     let pathPairs = [];
     if (Object.keys(selectedFolders.albums).length === 0) {
         // Case: renaming a single file
@@ -314,8 +306,6 @@ const handleRenameFile = async (e) => {
         });
     }
 
-    console.log(pathPairs);
-
     if (pathPairs.length > 0) {
         const resp = await fetch('/move-images', {
             method: 'POST',
@@ -327,8 +317,6 @@ const handleRenameFile = async (e) => {
 
         const data = await resp.json();
         const failedOldPaths = (data.failed || []).map((path) => path[0]);
-
-        console.log(data);
 
         // TODO: if the renamed item is a folder, don't need to rename each file individually, just move the folder obj.
         pathPairs
@@ -376,8 +364,6 @@ const generatePathPairs = (folderPath) => {
             }
         }
     }
-    console.log(selectedFilePaths);
-    console.log(prefixReplace);
 
     // Creates the path pairs: {oldPath: str, newPath: str}[]
     const pathPairs = selectedFilePaths.map((path) => {
@@ -574,7 +560,6 @@ const setToolStates = (change) => {
  */
 const handleEvent = (data) => {
     const event = JSON.parse(data);
-    console.log(event);
 
     for (const message of event.events) {
         switch (message.event) {

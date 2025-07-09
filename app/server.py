@@ -79,8 +79,6 @@ def save_settings():
         "randomize": settings["randomize"],
     }
 
-    print(prev_settings)
-    print(cleaned_settings)
     slideshow.save_settings_to_file(cleaned_settings)
 
     slideshow.stop_slideshow()
@@ -125,7 +123,6 @@ def upload_images():
         return jsonify({"status": "error", "message": "Invalid metadata provided"}), 400
 
     album_paths = request.files.keys()
-    print(album_paths)
     # Sanatize file paths
     album_paths = [utils.secure_path(album_path) for album_path in album_paths]   
     for album_path in album_paths:
@@ -144,7 +141,6 @@ def upload_images():
             if file_extension in {'heif', 'heic'}:
                 heif_files.append((guid, image_name))
                 image.save(f"{globals.TMP_STORAGE_DIR}/{image_name}") # Save to tmp storage
-                print(f"{globals.TMP_STORAGE_DIR}/{image_name}")
             else:
                 loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image, True)
                 saved_files.append((guid, loc))
@@ -164,7 +160,6 @@ def upload_images():
         # Bulk upload to cloud
         success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [filesystem.strip_base_dir(sf[1]) for sf in saved_files])
         failed_files = failed_files + [sf[0] for sf in saved_files if filesystem.strip_base_dir(sf[1]) in failure]
-        print(success,failure, failed_files)
 
         # Push events to queue
         message = json.dumps({"events": [{"event": "PUT", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
@@ -195,7 +190,6 @@ def delete_images():
         offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
     elif len(files) > 1:
         success, failed = cloud_adapter.delete_bulk(files)
-        print(success, failed)
         message = json.dumps({"events": [{"event": "DELETE", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
@@ -221,7 +215,6 @@ def move_images():
         if filesystem.key_to_abs_path(file['oldPath']) == filesystem.key_to_abs_path(file['newPath']):
             continue
 
-        print(filesystem.key_to_abs_path(file['oldPath']), filesystem.key_to_abs_path(file['newPath']))
         new_path = filesystem.key_to_abs_path(file['newPath'])
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         os.rename(filesystem.key_to_abs_path(file['oldPath']), new_path)
@@ -234,7 +227,6 @@ def move_images():
     elif len(files_to_move) > 0:
         image_key_pairs = [(f['oldPath'], f['newPath']) for f in files_to_move]
         success, failed = cloud_adapter.move_bulk(image_key_pairs)
-        print(success, failed)
         message = json.dumps({"events": [{"event": "MOVE", "path": sf[0], "newPath": sf[1]} for sf in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
@@ -261,8 +253,6 @@ def copy_images():
         if filesystem.key_to_abs_path(file['oldPath']) == filesystem.key_to_abs_path(file['newPath']):
             continue
 
-        print(filesystem.key_to_abs_path(file['oldPath']), filesystem.key_to_abs_path(file['newPath']))
-        print("-------------")
         new_path = filesystem.key_to_abs_path(file['newPath'])
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         shutil.copyfile(filesystem.key_to_abs_path(file['oldPath']), new_path)
@@ -274,7 +264,6 @@ def copy_images():
     elif len(files_to_copy) > 0:
         image_keys = [f['newPath'] for f in files_to_copy]
         success, failure = cloud_adapter.insert_bulk([filesystem.key_to_abs_path(k) for k in image_keys], image_keys)
-        print(success, failure)
         message = json.dumps({"events": [{"event": "PUT", "path": s} for s in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
@@ -288,7 +277,6 @@ def receive_events():
         return jsonify({"status": "ok"})
 
     processed_events = []
-    print(payload)
 
     # {'events': [{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}]}
     # "newPath"
@@ -376,35 +364,6 @@ def resync():
 
     local_files = set(filesystem.list_files_in_dir(globals.BASE_DIR, prefixes))
 
-    # TEMP: for testing
-    # l1 = ['albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png', 'albums/Shared/123.png', 'albums/Shared/19dfbc98-2a82-43da-802b-8ad5a5b5f32a.webcam-settings.png', 'albums/Shared/2e290df-75e3-49ce-ba0a-4273337e4274.123.png', 'albums/Shared/2eeda593-fb98-4a6b-9a52-41ca44faceb6.webcam-settings.png', 'albums/Shared/4a0983d0-ce2a-4009-a74c-641545d8d14b.webcam-settings.png', 'albums/Shared/615fdba2-72e0-4ffe-8793-83495bc2f159.testimage_-_Copy.png', 'albums/Shared/be9b074b-814e-4aaa-855b-87dce0dd9d1f.webcam-settings.png', 'albums/Shared/c585ecab-59db-450f-abb8-3d76f97bf172.webcam-settings.png', 'albums/Shared/dae13468-65fd-442a-83b9-35ab1194b4c4.webcam-settings.png', 'albums/Shared/ef4b2f52-b960-48d6-8a86-fcb4ac529c7f.testimage_-_Copy.png', 'albums/Shared/test2/11a1d5b2-fa89-4c9a-9ae9-50bf1299ca0e.webcam-settings.png', 'albums/Shared/test2/29c2f73a-0a5f-4d04-a67c-a00440e3b951.randomphoto.png', 'albums/Shared/test2/9ff70ffd-445f-4642-aa7f-3d39e80b0dd5.webcam-settings.png', 'albums/Shared/testing/asdf/09faab5c-9fe5-493a-ba18-e11d58453cd1.testimage_-_Copy.png', 'albums/Shared/testing/asdf/604c9748-3a89-49bd-9be5-3d00d8f3b36c.webcam-settings.png', 'albums/Shared/user1test/288fb391-ea2b-4f3b-90bd-fb400a326309.webcam-settings.png', 'albums/Shared/user1test/3300954b-469e-4c86-84eb-642ce9944f22.randomphoto.png', 'albums/Shared/user1test/3ff97bd5-94e0-4ce6-8cc7-d03bdeac677c.randomphoto.png', 'albums/Shared/user1test/514e05d5-59e4-4163-879c-9895d90089f1.randomphoto.png', 'albums/Shared/user1test/8c5cabbb-3408-4683-8468-99fa92b9a157.randomphoto.png', 'albums/Shared/user1test/b9f0f763-0b59-48d2-bfca-32974415ec76.webcam-settings.png', 'albums/Shared/user1test/bda535ba-3064-42f8-b21d-9e9f6ed17554.testimage_-_Copy.png', 'albums/Shared/user1test/f82db8b0-f7ed-49c6-b0c9-9315a2c1355f.webcam-settings.png', 'albums/Shared/user1test/subfolder1/09dad2ed-adb1-4421-9695-769a2be8a1e9.randomphoto.png', 'albums/Shared/user1test/subfolder1/6eb679c7-9fed-4592-8230-711f5c6e65e5.webcam-settings.png', 'albums/Shared/user1test/subfolder1/6f18a05a-bb79-4856-93f1-2b2ffe035a6c.randomphoto.png', 'albums/Shared/user1test/subfolder1/91040ce0-7cab-4979-8c43-2f81ebb7852e.testimage_-_Copy.png', 'albums/Shared/user1test/subfolder1/ca7e30be-255b-4cb1-9084-e6d0b3c119a5.webcam-settings.png', 'albums/Shared/user1test/test2/4b48e91e-9aba-4cd4-9bbc-98e6cafdf171.webcam-settings.png']
-    # l2 = ['albums/alee1246/nature/2a2d4c48-d6f5-4b46-869e-648dcf328c3d.testimage_-_Copy.png', 'albums/alee1246/nature/817ec81c-2b93-4fa6-aabf-2a31fa09226a.webcam-settings.png', 'albums/alee1246/nature/955cc36d-910b-49c2-b182-8aa41f335576.webcam-settings.png', 'albums/alee1246/user1test/subfolder1/04747157-9314-4c8d-8f39-41e172e97629.randomphoto.png', 'albums/alee1246/user1test/subfolder1/6808bb8a-6336-4912-9cd6-62db8f6d029a.webcam-settings.png']
-    # # cloud_files = set(l1).union(set(local_files))
-
-    # cloud_files = {'albums/Shared/test2/11a1d5b2-fa89-4c9a-9ae9-50bf1299ca0e.webcam-settings.png', 'albums/alee1246/user1test/subfolder1/6808bb8a-6336-4912-9cd6-62db8f6d029a.webcam-settings.png', 'albums/Shared/c585ecab-59db-450f-abb8-3d76f97bf172.webcam-settings.png', 'albums/Shared/user1test/subfolder1/6f18a05a-bb79-4856-93f1-2b2ffe035a6c.randomphoto.png', 'albums/Shared/2eeda593-fb98-4a6b-9a52-41ca44faceb6.webcam-settings.png', 'albums/Shared/user1test/subfolder1/09dad2ed-adb1-4421-9695-769a2be8a1e9.randomphoto.png', 'albums/Shared/user1test/subfolder1/91040ce0-7cab-4979-8c43-2f81ebb7852e.testimage_-_Copy.png', 'albums/Shared/user1test/test2/4b48e91e-9aba-4cd4-9bbc-98e6cafdf171.webcam-settings.png', 'albums/alee1246/nature/955cc36d-910b-49c2-b182-8aa41f335576.webcam-settings.png', 'albums/Shared/testing/asdf/604c9748-3a89-49bd-9be5-3d00d8f3b36c.webcam-settings.png', 'albums/Shared/user1test/8c5cabbb-3408-4683-8468-99fa92b9a157.randomphoto.png', 'albums/Shared/testing/asdf/09faab5c-9fe5-493a-ba18-e11d58453cd1.testimage_-_Copy.png', 'albums/Shared/user1test/subfolder1/6eb679c7-9fed-4592-8230-711f5c6e65e5.webcam-settings.png', 'albums/Shared/test2/9ff70ffd-445f-4642-aa7f-3d39e80b0dd5.webcam-settings.png', 'albums/Shared/user1test/514e05d5-59e4-4163-879c-9895d90089f1.randomphoto.png', 'albums/Shared/4a0983d0-ce2a-4009-a74c-641545d8d14b.webcam-settings.png', 'albums/Shared/user1test/subfolder1/ca7e30be-255b-4cb1-9084-e6d0b3c119a5.webcam-settings.png', 'albums/Shared/test2/29c2f73a-0a5f-4d04-a67c-a00440e3b951.randomphoto.png', 'albums/Shared/123.png', 'albums/Shared/user1test/bda535ba-3064-42f8-b21d-9e9f6ed17554.testimage_-_Copy.png', 'albums/Shared/615fdba2-72e0-4ffe-8793-83495bc2f159.testimage_-_Copy.png', 'albums/Shared/dae13468-65fd-442a-83b9-35ab1194b4c4.webcam-settings.png', 'albums/alee1246/nature/817ec81c-2b93-4fa6-aabf-2a31fa09226a.webcam-settings.png', 'albums/alee1246/nature/2a2d4c48-d6f5-4b46-869e-648dcf328c3d.testimage_-_Copy.png', 'albums/Shared/2e290df-75e3-49ce-ba0a-4273337e4274.123.png', 'albums/alee1246/user1test/subfolder1/04747157-9314-4c8d-8f39-41e172e97629.randomphoto.png', 'albums/Shared/user1test/3ff97bd5-94e0-4ce6-8cc7-d03bdeac677c.randomphoto.png', 'albums/Shared/user1test/288fb391-ea2b-4f3b-90bd-fb400a326309.webcam-settings.png', 'albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png', 'albums/Shared/be9b074b-814e-4aaa-855b-87dce0dd9d1f.webcam-settings.png', 'albums/Shared/user1test/b9f0f763-0b59-48d2-bfca-32974415ec76.webcam-settings.png', 'albums/Shared/user1test/f82db8b0-f7ed-49c6-b0c9-9315a2c1355f.webcam-settings.png', 'albums/Shared/19dfbc98-2a82-43da-802b-8ad5a5b5f32a.webcam-settings.png', 'albums/Shared/ef4b2f52-b960-48d6-8a86-fcb4ac529c7f.testimage_-_Copy.png', 'albums/Shared/user1test/3300954b-469e-4c86-84eb-642ce9944f22.randomphoto.png'}
-    # local_files = {'albums/Shared/test2/11a1d5b2-fa89-4c9a-9ae9-50bf1299ca0e.webcam-settings.png', 'albums/alee1246/user1test/subfolder1/6808bb8a-6336-4912-9cd6-62db8f6d029a.webcam-settings.png', 'albums/Shared/user1test/subfolder1/6f18a05a-bb79-4856-93f1-2b2ffe035a6c.randomphoto.png', 'albums/Shared/user1test/subfolder1/09dad2ed-adb1-4421-9695-769a2be8a1e9.randomphoto.png', 'albums/Shared/user1test/subfolder1/91040ce0-7cab-4979-8c43-2f81ebb7852e.testimage_-_Copy.png', 'albums/Shared/user1test/test2/4b48e91e-9aba-4cd4-9bbc-98e6cafdf171.webcam-settings.png', 'albums/alee1246/nature/955cc36d-910b-49c2-b182-8aa41f335576.webcam-settings.png', 'albums/Shared/testing/asdf/604c9748-3a89-49bd-9be5-3d00d8f3b36c.webcam-settings.png', 'albums/Shared/testing/asdf/09faab5c-9fe5-493a-ba18-e11d58453cd1.testimage_-_Copy.png', 'albums/Shared/user1test/subfolder1/6eb679c7-9fed-4592-8230-711f5c6e65e5.webcam-settings.png', 'albums/Shared/test2/48023cb9-9b84-4518-9ea6-9e5b720e814d.webcam-settings.png', 'albums/Shared/user1test/test2/8c044155-fc3a-4c84-896b-df876860ebf4.webcam-settings.png', 'albums/Shared/user1test/subfolder1/ca7e30be-255b-4cb1-9084-e6d0b3c119a5.webcam-settings.png', 'albums/Shared/user1test/bda535ba-3064-42f8-b21d-9e9f6ed17554.testimage_-_Copy.png', 'albums/Shared/user1test/subfolder1/39f7d32a-953f-4b3d-ac0e-25040bf60935.sample1.jpg', 'albums/Shared/user1test/test2/81fdb4be-7d54-4fbe-9db3-db4ef76d90c4.randomphoto.png', 'albums/alee1246/nature/817ec81c-2b93-4fa6-aabf-2a31fa09226a.webcam-settings.png', 'albums/alee1246/nature/2a2d4c48-d6f5-4b46-869e-648dcf328c3d.testimage_-_Copy.png', 'albums/alee1246/user1test/subfolder1/04747157-9314-4c8d-8f39-41e172e97629.randomphoto.png', 'albums/Shared/user1test/subfolder1/5eb68cef-8b24-420a-b15c-caab049ab7e7.webcam-settings.png', 'albums/Shared/test2/c83fac91-4427-46cc-8be7-37f1a191a697.randomphoto.png', 'albums/Shared/user1test/subfolder1/a1cb09c0-9de7-4efe-8bdc-4a0d68408070.webcam-settings.png'}
-
-    # local_files = {
-    #     # "albums/user1/photo1.jpg",
-    #     "albums/user1/photo2.jpg",
-    #     "albums/user1/photo3.jpg",
-    #     "albums/Shared/myfolder/photo1.jpg",
-    #     "albums/user1/abc/xyz/phototest.jpg"
-    # }
-
-    # cloud_files = {
-    #     "albums/user1/photo2.jpg",
-    #     "albums/user1/photo4.jpg",
-    #     "albums/user1/photo1.jpg"
-    # }
-
-    # print(cloud_files)
-    # print(local_files)
-
-    # print("--------")
-    # print("--------")
-    # print("--------")
-
     files_not_in_cloud = local_files.difference(cloud_files)
     files_not_in_local = cloud_files.difference(local_files)
 
@@ -415,9 +374,6 @@ def resync():
             evt["newPath"] = filesystem.strip_base_dir(evt["newPath"])
     print("Offline events:")
     print(offline_events)
-
-    # print(files_not_in_cloud)
-    # print(files_not_in_local)
 
     events_to_send = []
     for evt in offline_events:
@@ -433,12 +389,6 @@ def resync():
             case "DELETE":
                 files_not_in_local.discard(evt["path"])
                 events_to_send.append({"event": "DELETE", "path": evt["path"]})
-
-    # print("--------")
-    # print("--------")
-    # print("--------")
-    # print(files_not_in_cloud)
-    # print(files_not_in_local)
 
     print("Downloading from cloud:")
     print(files_not_in_local)

@@ -32,7 +32,6 @@ def main():
             time.sleep(30) # Wait for the resync to complete
             continue
 
-        print("Polling...") # DEBUG
         try:
             # Check if the SQS queue is healthy
             if not aws.ping(globals.SQS_PING_URL):
@@ -47,8 +46,7 @@ def main():
                 # mapping (msg id -> receipt handle) required to delete messages from queue
                 id_to_receipt_handles: dict[str, str] = {}
 
-                if 'Messages' in response:
-                    print(f"Received messages: {response}") # DEBUG
+                print(f"Received {len(response.get('Messages', []))} messages.")
                 # We can receive multiple messages in one response
                 for sqs_message in response.get('Messages', []):
                     id_to_receipt_handles[sqs_message['MessageId']] = sqs_message['ReceiptHandle']

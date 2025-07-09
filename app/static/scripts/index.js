@@ -23,8 +23,6 @@ const refreshUI = () => {
 document.addEventListener('DOMContentLoaded', () => {
     settingsState = savedSettings || { ...DEFAULT_SETTINGS };
 
-    console.log(savedSettings);
-    console.log(fileSystemSnapshot);
     refreshUI();
 
     // Settings section event listeners
