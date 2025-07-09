@@ -26,6 +26,6 @@ ALLOWED_PREFIXES = {'Shared', os.getenv('USERNAME')} if os.getenv('USERNAME') el
 
 QUEUE_RETENTION_DAYS = 4
 
-API_URL = f"http://localhost:{os.getenv('API_PORT', 5000)}"
+API_URL = f"http://localhost:{os.getenv('API_PORT', 5555)}"
 SQS_PING_URL = f"https://sqs.{os.getenv('AWS_REGION', 'us-east-1')}.amazonaws.com/ping"
 S3_PING_URL = f"https://s3.{os.getenv('AWS_REGION', 'us-east-1')}.amazonaws.com/ping"

@@ -448,4 +448,4 @@ if __name__ == '__main__':
         album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
         slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
 
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5555)))

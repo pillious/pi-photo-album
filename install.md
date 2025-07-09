@@ -139,12 +139,10 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
     PUSH_QUEUE_ROLE=
     RECEIVE_EVENT_QUEUE_URL=
 
-    API_PORT=<port_number (e.g. 5000)>
-
     #
     # Optional configuration:
     #
-
+    API_PORT=<port_number [default: 5555]>
     # S3_BUCKET_NAME must match the one created in `admin/aws/s3.tf`
     S3_BUCKET_NAME=<your_s3_bucket_name [default: pi-photo-album-s3]>
     PHOTO_STORAGE_PATH=<path_to_photo_storage [default: $HOME/pi-photo-album]>
