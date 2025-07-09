@@ -19,7 +19,7 @@ ACTIVE_SLIDESHOW_FILE = CONFIG_DIR + "/active_slideshow.txt"
 BASE_DIR = os.path.abspath(os.path.expandvars(os.getenv('PHOTO_STORAGE_PATH', '$HOME/pi-photo-album')))
 TMP_STORAGE_DIR = BASE_DIR + "/tmp"
 
-MAX_CONTENT_LENGTH = 128 * 1024 * 1024 # 128MB
+MAX_CONTENT_LENGTH = 512 * 1024 * 1024 # 512MB
 ALLOWED_FILE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'heif', 'heic'}
 
 ALLOWED_PREFIXES = {'Shared', os.getenv('USERNAME')} if os.getenv('USERNAME') else {'Shared'}
