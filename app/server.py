@@ -379,15 +379,15 @@ def resync():
     for evt in offline_events:
         match evt["event"]:
             case "PUT":
-                files_not_in_cloud.discard(evt["path"])
+                files_not_in_cloud.discard(evt["path"]) # Avoids deleting the file later.
                 events_to_send.append({"event": "PUT", "path": evt["path"]})
             case "MOVE":
                 # TODO: test multiple moves of the same file while offline.
-                files_not_in_local.discard(evt["path"])
-                files_not_in_cloud.discard(evt["newPath"])
+                files_not_in_local.discard(evt["path"]) # Avoids downloading the file later.
+                files_not_in_cloud.discard(evt["newPath"]) # Avoids deleting the file later.
                 events_to_send.append({"event": "MOVE", "path": evt["path"], "newPath": evt["newPath"]})
             case "DELETE":
-                files_not_in_local.discard(evt["path"])
+                files_not_in_local.discard(evt["path"]) # Avoids downloading the file later.
                 events_to_send.append({"event": "DELETE", "path": evt["path"]})
 
     print("Downloading from cloud:")
@@ -413,25 +413,6 @@ def resync():
 
     print("Clearing offline events")
     offline.clear_offline_events(globals.OFFLINE_EVENTS_FILE)
-
-    # any put events can be sent without checking anything else b/c files have unique names
-    #  - path removed from files_not_in_cloud
-    # any move events can also be sent without checking anything. If the new location exists already, the old path can just be deleted.
-    #  - old path should be removed from files_not_in_local
-    #  - new path removed from files_not_in_cloud
-    # delete events can be sent without checking anything. If the file is already deleted, just does nothing.
-    #  - should removed the deleted path from files_not_in_local
-
-    # after, delete all remaining files_not_in_cloud
-
-    # cloud_adapter.get_bulk([filesystem.key_to_abs_path(f) for f in files_not_in_cloud], list(files_not_in_local))
-
-
-    # handle case where the file has been deleted from the cloud but not from local.
-    # Need to have a list of events that happened while offline so that we don't reupload the delete file.
-    # cloud_adapter.insert_bulk([f"{globals.BASE_DIR}/{f}" for f in files_not_in_local], list(files_not_in_local))
-
-    # clear offline events after they are sent.
 
     return jsonify({"status": "ok"})
 
@@ -461,7 +442,7 @@ if __name__ == '__main__':
     os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
     os.makedirs(globals.TMP_STORAGE_DIR, exist_ok=True)
 
-    # Starts slideshow on startup if the enabled in the settings.
+    # Starts slideshow on startup if it's enabled in the settings.
     settings = slideshow.load_settings()
     if settings["isEnabled"]:
         album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
