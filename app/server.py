@@ -23,7 +23,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
 app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
 
-cloud_adapter = s3_adapter.S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album'))
+cloud_adapter = s3_adapter.S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))
 event_announcer = EventAnnouncer()
 
 def enforce_mime(mime_type):
@@ -296,6 +296,7 @@ def receive_events():
                 case "DELETE":
                     print(f"EVENT: Deleting {event['path']}")
                     filesystem.silentremove(f"{globals.BASE_DIR}/{event['path']}")
+                    filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(event['path'])))
                 case "MOVE":
                     old_path, abs_old_path = event['path'], filesystem.key_to_abs_path(event['path'])
                     new_path, abs_new_path = event['newPath'], filesystem.key_to_abs_path(event['newPath'])
@@ -321,8 +322,7 @@ def receive_events():
                         event["event"] = "DELETE"
                         event["path"] = old_path
                         del event["newPath"]
-                # TODO: handle empty folders after move.
-                # can probably be some utility function that takes a path and goes up the path chain.
+                    filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(old_path)))
             processed_events.append(event)
         except Exception as e:
             print(f"Error processing event: {e}")
