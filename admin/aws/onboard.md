@@ -34,7 +34,7 @@ Admin related setup should be done from a seperate machine, not the raspberry pi
 1. Get required information for the user:
     
     > [!Tip]
-    > Simplest way is to use `jq` to parse the output (`sudo apt install jq`):
+    > Simplest way is to use `jq` (`sudo apt install jq`) to parse the `admin/aws/terraform.tfstate` file .
 
     > [!Tip]
     > In the following steps, replace `<username>` username you added in step 1.
