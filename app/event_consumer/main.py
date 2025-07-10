@@ -18,8 +18,9 @@ def main():
     failed_health_checks = 0
     while True:
         if not is_api_healthy():
+            if failed_health_checks == 0:
+                print("API is not healthy. Waiting for it to come back online...")
             failed_health_checks += 1
-            print(f"Health check failed ({failed_health_checks})")
             time.sleep(2 ** min(failed_health_checks, 5)) # exponential backoff
             continue
 
@@ -46,9 +47,12 @@ def main():
                 # mapping (msg id -> receipt handle) required to delete messages from queue
                 id_to_receipt_handles: dict[str, str] = {}
 
-                print(f"Received {len(response.get('Messages', []))} messages.")
+                messages = response.get('Messages', [])
+                if len(messages) > 0:
+                    print(f"Received {len(response.get('Messages', []))} messages.")
+
                 # We can receive multiple messages in one response
-                for sqs_message in response.get('Messages', []):
+                for sqs_message in messages:
                     id_to_receipt_handles[sqs_message['MessageId']] = sqs_message['ReceiptHandle']
 
                     body = json.loads(sqs_message['Body'])

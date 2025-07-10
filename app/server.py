@@ -180,16 +180,18 @@ def delete_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
     
-    for f in files:
-        f = utils.secure_path(f)
-        filesystem.silentremove(filesystem.key_to_abs_path(f))
-        filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
+    # for f in files:
+    #     f = utils.secure_path(f)
+    #     filesystem.silentremove(filesystem.key_to_abs_path(f))
+    #     filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
 
     if not aws.ping(globals.S3_PING_URL):
         offline_events = [offline.create_offline_event('DELETE', sf) for sf in files]
         offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
-    elif len(files) > 1:
+    elif len(files) > 0:
+        print(files)
         success, failed = cloud_adapter.delete_bulk(files)
+        print(success, failed)
         message = json.dumps({"events": [{"event": "DELETE", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
         cloud_adapter.insert_queue(message)
 
@@ -448,4 +450,4 @@ if __name__ == '__main__':
         album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
         slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
 
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('API_PORT', 5555)))
+    app.run(debug=True, host='0.0.0.0', use_reloader=False, port=int(os.getenv('API_PORT', 5555)))

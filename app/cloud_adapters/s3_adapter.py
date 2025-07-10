@@ -188,11 +188,11 @@ class S3Adapter(Adapter):
         try:
             if not self.sqs_client:
                 self._create_sqs_client()
-                if self.sqs_client:
-                    self.sqs_client.send_message(
-                        QueueUrl=os.getenv('PUSH_QUEUE_URL'),
-                        MessageBody=message,
-                        MessageGroupId=message_group_id
-                    )
+            if self.sqs_client:
+                self.sqs_client.send_message(
+                    QueueUrl=os.getenv('PUSH_QUEUE_URL'),
+                    MessageBody=message,
+                    MessageGroupId=message_group_id
+                )
         except Exception as e:
             raise AdapterException(f"Error sending message to SQS: {e}")

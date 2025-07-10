@@ -608,5 +608,6 @@ const handleEvent = (data) => {
 
     if (event.events.length > 0) {
         updateFileSystemUI();
+        updateSettingsUI(settingsState);
     }
 };
