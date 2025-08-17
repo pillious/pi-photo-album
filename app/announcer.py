@@ -23,3 +23,16 @@ class EventAnnouncer:
         if event:
             msg = f'event: {event}\n{msg}'
         return msg
+
+_EVENT_ANNOUNCER = None
+
+def init_event_announcer():
+    global _EVENT_ANNOUNCER
+    if _EVENT_ANNOUNCER is not None:
+        return # Already initialized
+    _EVENT_ANNOUNCER = EventAnnouncer()
+
+def event_announcer():
+    if _EVENT_ANNOUNCER is None:
+        raise RuntimeError("Event announcer not initialized. Run init_event_announcer() first.")
+    return _EVENT_ANNOUNCER

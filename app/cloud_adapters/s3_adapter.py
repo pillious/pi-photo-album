@@ -196,3 +196,17 @@ class S3Adapter(Adapter):
                 )
         except Exception as e:
             raise AdapterException(f"Error sending message to SQS: {e}")
+
+_CLOUD_ADAPTER = None
+
+def init_cloud_client():
+    global _CLOUD_ADAPTER
+    if _CLOUD_ADAPTER is not None:
+        return # Already initialized
+
+    _CLOUD_ADAPTER = S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))
+
+def cloud_client() -> S3Adapter:
+    if _CLOUD_ADAPTER is None:
+        raise RuntimeError("Cloud adapter not initialized. Call init_cloud_adapter() first.")
+    return _CLOUD_ADAPTER
