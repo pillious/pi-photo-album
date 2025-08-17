@@ -7,22 +7,22 @@ import os
 import json
 import csv
 
-import app.globals as globals
-import app.utils.filesystem as filesystem
-import app.utils.offline as offline
+from app.config.config import config
+from app.utils import offline, filesystem
 
 def write_poll_time():
     """
     Write the current timestamp to the last_poll file.
     Resilient to crashes and restarts.
     """
+    last_poll_file = config()['paths']['last_poll_file'].as_str()
     timestamp = str(datetime.datetime.now(datetime.timezone.utc))
-    tmp_file = f'{globals.LAST_POLL_FILE}.tmp'
+    tmp_file = f'{last_poll_file}.tmp'
     with open(tmp_file, 'w') as f:
         f.write(timestamp + "\n")
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp_file, globals.LAST_POLL_FILE)
+    os.replace(tmp_file, last_poll_file)
 
 def get_last_poll():
     """
@@ -30,7 +30,8 @@ def get_last_poll():
     If the file does not exist or is empty, returns 1 January 1970.
     """
     try:
-        with open(globals.LAST_POLL_FILE, 'r') as f:
+        last_poll_file = config()['paths']['last_poll_file'].as_str()
+        with open(last_poll_file, 'r') as f:
             return datetime.datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
         return datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
@@ -39,8 +40,9 @@ def is_within_retention_period():
     """
     Check if the last poll time is within the queue retention period.
     """
+    queue_retention_days = config()['queue']['retention_days'].as_int()
     last_poll_time = get_last_poll()
-    lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=globals.QUEUE_RETENTION_DAYS)
+    lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=queue_retention_days)
     return last_poll_time >= lower_bound
 
 def save_simple_fs_snapshot(out_file: str):
@@ -53,9 +55,11 @@ def save_simple_fs_snapshot(out_file: str):
     [file_path_1, ... file_path_n]
     ```
     """
-    prefixes = [f"albums/{prefix}" for prefix in globals.ALLOWED_PREFIXES]
-    file_paths = filesystem.list_files_in_dir(globals.BASE_DIR, prefixes)
-    
+    allowed_prefixes = config()['files']['allowed_prefixes'].as_set().as_strs()
+    base_dir = config()['paths']['base_dir'].as_str()
+    prefixes = [f"albums/{prefix}" for prefix in allowed_prefixes]
+    file_paths = filesystem.list_files_in_dir(base_dir, prefixes)
+
     with open(out_file, 'w') as f:
         f.write(str(offline.get_last_poll()))
         f.write("\n")
@@ -104,7 +108,8 @@ def get_snapshot_time():
     Get the time of the last snapshot.
     """
     try:
-        with open(globals.FS_SNAPSHOT_FILE, 'r') as f:
+        fs_snapshot_file = config()['paths']['fs_snapshot_file'].as_str()
+        with open(fs_snapshot_file, 'r') as f:
             return datetime.datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
         return None

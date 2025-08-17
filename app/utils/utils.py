@@ -46,6 +46,20 @@ def multiple_heif_to_jpg(heif_paths: list[str], jpg_paths: list[str], quality: i
 
     return exit_codes
 
+def rotate_jpgs(jpg_paths: list[str]):
+    """
+    Rotate JPG files to horizontal based on their EXIF orientation.
+    """
+    procs: list[subprocess.Popen[bytes]] = []
+
+    for jpg_path in jpg_paths:
+        os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
+        proc = subprocess.Popen(["exiftran", "-i", "-a", jpg_path])
+        procs.append(proc)
+
+    exit_codes = [proc.wait() for proc in procs]
+    return exit_codes
+
 def save_image_to_disk(album_path: str, image_name: str, image: FileStorage, handle_duplicates: bool) -> str:
     loc = f"{album_path}/{image_name}"
     if handle_duplicates:

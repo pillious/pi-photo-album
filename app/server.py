@@ -8,20 +8,18 @@ from flask import Flask, render_template, request, jsonify, Response, send_from_
 from werkzeug.utils import secure_filename
 from urllib.parse import unquote, urlparse
 
+from app import slideshow
 from app.announcer import EventAnnouncer
 from app.cloud_adapters import s3_adapter
-import app.globals as globals
-import app.slideshow as slideshow
-import app.utils.aws as aws
-import app.utils.filesystem as filesystem
-import app.utils.offline as offline
-import app.utils.utils as utils
+from app.config.config import config, load_config
+from app.utils import aws, filesystem, offline, utils
 
-utils.load_env([".env", globals.ENV_FILE])
+utils.load_env([".env", os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/.env'))])
+load_config()
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = globals.MAX_CONTENT_LENGTH
-app.config['UPLOAD_EXTENSIONS'] = globals.ALLOWED_FILE_EXTENSIONS
+app.config['MAX_CONTENT_LENGTH'] = config()['files']['max_content_length'].as_int()
+app.config['UPLOAD_EXTENSIONS'] = config()['files']['allowed_file_extensions'].as_set().as_strs()
 
 cloud_adapter = s3_adapter.S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))
 event_announcer = EventAnnouncer()
@@ -44,7 +42,8 @@ def index():
     if not username:
         raise ValueError("Environment variable 'USERNAME' must be set.")
     default_file_structure = filesystem.get_default_file_structure(username)
-    file_structure = filesystem.get_file_structure(f"{globals.BASE_DIR}/albums")
+    base_dir = config()['paths']['base_dir'].as_str()
+    file_structure = filesystem.get_file_structure(f"{base_dir}/albums")
 
     # Ensure that the default file structure is always present at a minimum.
     file_structure = utils.partial_dict_merge(file_structure, default_file_structure)
@@ -80,9 +79,10 @@ def save_settings():
     }
 
     slideshow.save_settings_to_file(cleaned_settings)
-
     slideshow.stop_slideshow()
-    album_path = f"{globals.BASE_DIR}/albums/{cleaned_settings['album']}"
+
+    base_dir = config()['paths']['base_dir'].as_str()
+    album_path = f"{base_dir}/albums/{cleaned_settings['album']}"
     if (cleaned_settings["randomize"] != prev_settings["randomize"] 
         or cleaned_settings["album"] != prev_settings["album"]):
         # Must be set to recursive b/c inotifywait is setup to watch recursively.
@@ -97,7 +97,8 @@ def save_settings():
 def shuffle():
     settings = slideshow.load_settings()
     if settings["album"]:
-        album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
+        base_dir = config()['paths']['base_dir'].as_str()
+        album_path = f"{base_dir}/albums/{settings['album']}"
         # Must be set to recursive b/c inotifywait is setup to watch recursively.
         slideshow.set_image_order(album_path, True, True)
         if settings["isEnabled"]:
@@ -122,6 +123,9 @@ def upload_images():
     except json.JSONDecodeError:
         return jsonify({"status": "error", "message": "Invalid metadata provided"}), 400
 
+    base_dir = config()['paths']['base_dir'].as_str()
+    tmp_storage_dir = config()['paths']['tmp_storage_dir'].as_str()
+
     album_paths = request.files.keys()
     # Sanatize file paths
     album_paths = [utils.secure_path(album_path) for album_path in album_paths]   
@@ -140,22 +144,28 @@ def upload_images():
 
             if file_extension in {'heif', 'heic'}:
                 heif_files.append((guid, image_name))
-                image.save(f"{globals.TMP_STORAGE_DIR}/{image_name}") # Save to tmp storage
+                image.save(f"{tmp_storage_dir}/{image_name}")
             else:
-                loc = utils.save_image_to_disk(f'{globals.BASE_DIR}/albums/{album_path}', image_name, image, True)
+                loc = utils.save_image_to_disk(f'{base_dir}/albums/{album_path}', image_name, image, True)
                 saved_files.append((guid, loc))
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{globals.BASE_DIR}/albums/{os.path.dirname(heif_file[1])}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
-        heif_paths = [f"{globals.TMP_STORAGE_DIR}/{heif_file[1]}" for heif_file in heif_files]
+        jpg_paths = [f"{base_dir}/albums/{os.path.dirname(heif_file[1])}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
+        heif_paths = [f"{tmp_storage_dir}/{heif_file[1]}" for heif_file in heif_files]
         exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
             saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
 
-    if not aws.ping(globals.S3_PING_URL):
+    # Parallelize the rotation of JPG files.
+    jpg_paths = [sf[1] for sf in saved_files if utils.get_file_extension(sf[1]) in {'jpg', 'jpeg'}]
+    if len(jpg_paths) > 0:
+        utils.rotate_jpgs(jpg_paths)
+
+    if not aws.ping(config()['url']['s3_ping_url'].as_str()):
         offline_events = [offline.create_offline_event('PUT', sf[1]) for sf in saved_files]
-        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+        offline_events_file = config()['paths']['offline_events_file'].as_str()
+        offline.save_offline_events(offline_events_file, offline_events)
     elif len(saved_files) > 0:
         # Bulk upload to cloud
         success, failure = cloud_adapter.insert_bulk([sf[1] for sf in saved_files], [filesystem.strip_base_dir(sf[1]) for sf in saved_files])
@@ -168,6 +178,7 @@ def upload_images():
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
     # return jsonify({"status": "ok", "failed": failed_files, "success": success})
+    print(f'failed to upload: {failed_files}')
     return jsonify({"status": "ok", "failed": [], "success": [filesystem.strip_base_dir(sf[1]) for sf in saved_files]})
 
 @app.route('/delete-images', methods=['POST'])
@@ -180,14 +191,18 @@ def delete_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
     
-    # for f in files:
-    #     f = utils.secure_path(f)
-    #     filesystem.silentremove(filesystem.key_to_abs_path(f))
-    #     filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
+    base_dir = config()['paths']['base_dir'].as_str()
+    s3_ping_url = config()['url']['s3_ping_url'].as_str()
+    offline_events_file = config()['paths']['offline_events_file'].as_str()
 
-    if not aws.ping(globals.S3_PING_URL):
+    for f in files:
+        f = utils.secure_path(f)
+        filesystem.silentremove(filesystem.key_to_abs_path(f))
+        filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
+
+    if not aws.ping(s3_ping_url):
         offline_events = [offline.create_offline_event('DELETE', sf) for sf in files]
-        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+        offline.save_offline_events(offline_events_file, offline_events)
     elif len(files) > 0:
         print(files)
         success, failed = cloud_adapter.delete_bulk(files)
@@ -207,6 +222,10 @@ def move_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
+    base_dir = config()['paths']['base_dir'].as_str()
+    s3_ping_url = config()['url']['s3_ping_url'].as_str()
+    offline_events_file = config()['paths']['offline_events_file'].as_str()
+
     files_to_move = []
     for file in files:
         file['oldPath'] = utils.secure_path(file['oldPath'])
@@ -220,12 +239,12 @@ def move_images():
         new_path = filesystem.key_to_abs_path(file['newPath'])
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         os.rename(filesystem.key_to_abs_path(file['oldPath']), new_path)
-        filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(file['oldPath'])))
+        filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(file['oldPath'])))
         files_to_move.append(file)
 
-    if not aws.ping(globals.S3_PING_URL):
+    if not aws.ping(s3_ping_url):
         offline_events = [offline.create_offline_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
-        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+        offline.save_offline_events(offline_events_file, offline_events)
     elif len(files_to_move) > 0:
         image_key_pairs = [(f['oldPath'], f['newPath']) for f in files_to_move]
         success, failed = cloud_adapter.move_bulk(image_key_pairs)
@@ -245,6 +264,9 @@ def copy_images():
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
+    s3_ping_url = config()['url']['s3_ping_url'].as_str()
+    offline_events_file = config()['paths']['offline_events_file'].as_str()
+
     files_to_copy = []
     for file in files:
         file['oldPath'] = utils.secure_path(file['oldPath'])
@@ -260,9 +282,9 @@ def copy_images():
         shutil.copyfile(filesystem.key_to_abs_path(file['oldPath']), new_path)
         files_to_copy.append(file)
 
-    if not aws.ping(globals.S3_PING_URL):
+    if not aws.ping(s3_ping_url):
         offline_events = [offline.create_offline_event('PUT', sf['newPath']) for sf in files_to_copy]
-        offline.save_offline_events(globals.OFFLINE_EVENTS_FILE, offline_events)
+        offline.save_offline_events(offline_events_file, offline_events)
     elif len(files_to_copy) > 0:
         image_keys = [f['newPath'] for f in files_to_copy]
         success, failure = cloud_adapter.insert_bulk([filesystem.key_to_abs_path(k) for k in image_keys], image_keys)
@@ -278,7 +300,9 @@ def receive_events():
     if not payload:
         return jsonify({"status": "ok"})
 
+
     processed_events = []
+    base_dir = config()['paths']['base_dir'].as_str()
 
     # {'events': [{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}]}
     # "newPath"
@@ -297,8 +321,8 @@ def receive_events():
                             f.write(image)
                 case "DELETE":
                     print(f"EVENT: Deleting {event['path']}")
-                    filesystem.silentremove(f"{globals.BASE_DIR}/{event['path']}")
-                    filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(event['path'])))
+                    filesystem.silentremove(f"{base_dir}/{event['path']}")
+                    filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(event['path'])))
                 case "MOVE":
                     old_path, abs_old_path = event['path'], filesystem.key_to_abs_path(event['path'])
                     new_path, abs_new_path = event['newPath'], filesystem.key_to_abs_path(event['newPath'])
@@ -324,7 +348,7 @@ def receive_events():
                         event["event"] = "DELETE"
                         event["path"] = old_path
                         del event["newPath"]
-                    filesystem.remove_dirs(f'{globals.BASE_DIR}/albums', filesystem.remove_albums_prefix(os.path.dirname(old_path)))
+                    filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(old_path)))
             processed_events.append(event)
         except Exception as e:
             print(f"Error processing event: {e}")
@@ -354,9 +378,15 @@ def resync():
     """
     event_announcer.announce(json.dumps({"events": [{"event": "LOADING", "loading": True, "message": "Resyncing photos with cloud storage..."}], "sender": os.getenv('USERNAME')}))
 
-    prefixes = [f"albums/{prefix}" for prefix in globals.ALLOWED_PREFIXES]
+    allowed_prefixes = config()['files']['allowed_prefixes'].as_set().as_strs()
+    s3_ping_url = config()['url']['s3_ping_url'].as_str()
+    base_dir = config()['paths']['base_dir'].as_str()
+    offline_events_file = config()['paths']['offline_events_file'].as_str()
 
-    if not aws.ping(globals.S3_PING_URL):
+    prefixes = [f"albums/{prefix}" for prefix in allowed_prefixes]
+
+
+    if not aws.ping(s3_ping_url):
         return jsonify({"status": "error", "message": "Offline"}), 500
 
     cloud_files = set()
@@ -364,12 +394,12 @@ def resync():
         # trailing slash required b/c of s3 policy
         cloud_files.update(cloud_adapter.list_album(f'{prefix}/'))
 
-    local_files = set(filesystem.list_files_in_dir(globals.BASE_DIR, prefixes))
+    local_files = set(filesystem.list_files_in_dir(base_dir, prefixes))
 
     files_not_in_cloud = local_files.difference(cloud_files)
     files_not_in_local = cloud_files.difference(local_files)
 
-    offline_events = offline.get_offline_events(globals.OFFLINE_EVENTS_FILE)
+    offline_events = offline.get_offline_events(offline_events_file)
     for evt in offline_events:
         evt["path"] = filesystem.strip_base_dir(evt["path"])
         if evt["event"] == "MOVE":
@@ -406,7 +436,7 @@ def resync():
     event_announcer.announce(json.dumps(
         {
             "events": [
-                {"event": "RESYNC", "fileStructure": filesystem.get_file_structure(f"{globals.BASE_DIR}/albums")},
+                {"event": "RESYNC", "fileStructure": filesystem.get_file_structure(f"{base_dir}/albums")},
                 {"event": "LOADING", "loading": False}
             ], 
             "sender": os.getenv('USERNAME')
@@ -414,7 +444,7 @@ def resync():
     ))
 
     print("Clearing offline events")
-    offline.clear_offline_events(globals.OFFLINE_EVENTS_FILE)
+    offline.clear_offline_events(offline_events_file)
 
     return jsonify({"status": "ok"})
 
@@ -433,21 +463,28 @@ def preview():
     if not os.path.exists(filesystem.key_to_abs_path(image_path)):
         return jsonify({"status": "error", "message": "Image not found"}), 404
 
-    return send_from_directory(globals.BASE_DIR, image_path)
+    base_dir = config()['paths']['base_dir'].as_str()
+    return send_from_directory(base_dir, image_path)
 
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
-    os.makedirs(globals.CONFIG_DIR, exist_ok=True)
-    os.makedirs(f"{globals.BASE_DIR}/albums", exist_ok=True)
-    os.makedirs(globals.TMP_STORAGE_DIR, exist_ok=True)
+    base_dir = config()['paths']['base_dir'].as_str()
+    tmp_storage_dir = config()['paths']['tmp_storage_dir'].as_str()
+
+    os.makedirs(tmp_storage_dir, exist_ok=True)
+    os.makedirs(config()['paths']['config_dir'].as_str(), exist_ok=True)
+    os.makedirs(f"{base_dir}/albums", exist_ok=True)
+    os.makedirs(tmp_storage_dir, exist_ok=True)
 
     # Starts slideshow on startup if it's enabled in the settings.
     settings = slideshow.load_settings()
     if settings["isEnabled"]:
-        album_path = f"{globals.BASE_DIR}/albums/{settings['album']}"
+        album_path = f"{base_dir}/albums/{settings['album']}"
         slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
+
+    print(settings)
 
     app.run(debug=True, host='0.0.0.0', use_reloader=False, port=int(os.getenv('API_PORT', 5555)))

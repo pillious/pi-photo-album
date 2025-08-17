@@ -3,7 +3,7 @@ import json
 import random
 import subprocess
 
-import app.globals as globals
+from app.config.config import config
 
 slideshow_proc: subprocess.Popen | None = None
 
@@ -17,8 +17,9 @@ def start_slideshow(album: str, blend: int, speed: int):
     """
     global slideshow_proc
 
+    active_slideshow = config()['paths']['active_slideshow_file'].as_str()
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "display_slideshow.sh")
-    cmd = [script_path, album, str(speed), str(blend), globals.ACTIVE_SLIDESHOW_FILE]
+    cmd = [script_path, album, str(speed), str(blend), active_slideshow]
     slideshow_proc = subprocess.Popen(cmd)
 
 def stop_slideshow():
@@ -32,16 +33,26 @@ def stop_slideshow():
         slideshow_proc.wait()
 
 def load_settings():
-    if not os.path.exists(globals.SETTINGS_FILE):
-        return globals.DEFAULT_SETTINGS
+    settings_file = config()['paths']['settings_file'].as_str()
+    default_settings = {
+        "album": config()['default_settings']['album'].as_str(),
+        "isEnabled": config()['default_settings']['isEnabled'].as_bool(),
+        "blend": config()['default_settings']['blend'].as_int(),
+        "speed": config()['default_settings']['speed'].as_int(),
+        "randomize": config()['default_settings']['randomize'].as_bool()
+    }
 
-    with open(globals.SETTINGS_FILE, 'r') as f:
+    if not os.path.exists(settings_file):
+        return default_settings
+
+    with open(settings_file, 'r') as f:
         return json.load(f)
 
 # Expects a dictionary of settings.
 def save_settings_to_file(settings):
-    os.makedirs(os.path.dirname(globals.SETTINGS_FILE), exist_ok=True)
-    with open(globals.SETTINGS_FILE, 'w') as f:
+    settings_file = config()['paths']['settings_file'].as_str()
+    os.makedirs(os.path.dirname(settings_file), exist_ok=True)
+    with open(settings_file, 'w') as f:
         json.dump(settings, f)
 
 def set_image_order(album: str, randomize:bool, recursive: bool):
@@ -56,5 +67,6 @@ def set_image_order(album: str, randomize:bool, recursive: bool):
     if randomize:
         random.shuffle(file_names)
 
-    with open(globals.ACTIVE_SLIDESHOW_FILE, 'w') as f:
+    active_slideshow_file = config()['paths']['active_slideshow_file'].as_str()
+    with open(active_slideshow_file, 'w') as f:
         f.write('\n'.join(file_names))

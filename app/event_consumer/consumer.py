@@ -3,7 +3,6 @@ import boto3
 import botocore
 import os
 import time
-import requests
 
 import botocore.config
 

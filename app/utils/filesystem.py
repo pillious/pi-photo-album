@@ -1,6 +1,6 @@
 import os
 
-import app.globals as globals
+from app.config.config import config
 
 def get_default_file_structure(username: str):
     return {
@@ -34,7 +34,8 @@ def is_file_owner(file_path: str):
     """
     if file_path.startswith('albums/'):
         file_path = file_path[7:]
-    return file_path.split('/', 1)[0] in globals.ALLOWED_PREFIXES
+    allowed_prefixes = config()['files']['allowed_prefixes'].as_set().as_strs()
+    return file_path.split('/', 1)[0] in allowed_prefixes
 
 def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = []):
     """
@@ -55,10 +56,10 @@ def key_to_abs_path(key: str):
     
     `key` is the path stored on the cloud.
     """
-    return f'{globals.BASE_DIR}/{key}'
+    return f'{config()["paths"]["base_dir"].as_str()}/{key}'
 
 def strip_base_dir(abs_path: str):
-    return abs_path[len(f"{globals.BASE_DIR}/"):]
+    return abs_path[len(f"{config()['paths']['base_dir'].as_str()}/"):]
 
 def silentremove(path: str):
     try:

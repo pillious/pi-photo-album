@@ -5,13 +5,12 @@ import json
 import botocore
 import os
 
-import app.globals as globals
-import app.utils.utils as utils
-import app.utils.aws as aws
-import app.utils.offline as offline
+from app.config.config import config, load_config
+from app.utils import utils, aws, offline
 from app.event_consumer.consumer import SQSQueueConsumer
 
-utils.load_env([".env", globals.ENV_FILE])
+utils.load_env([".env", os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/.env'))])
+load_config()
 
 def main():
     sqs_consumer = SQSQueueConsumer()
@@ -35,7 +34,7 @@ def main():
 
         try:
             # Check if the SQS queue is healthy
-            if not aws.ping(globals.SQS_PING_URL):
+            if not aws.ping(config()['url']['sqs_ping_url'].as_str()):
                 handle_consumer_offline()
                 failed_health_checks += 1
                 time.sleep(2 ** min(failed_health_checks, 5))
@@ -76,7 +75,8 @@ def is_api_healthy():
     Check the health of the API.
     """
     try:
-        response = requests.get(f"{globals.API_URL}/health", timeout=10)
+        api_url = config()['url']['api_url'].as_str()
+        response = requests.get(f"{api_url}/health", timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')
@@ -91,7 +91,8 @@ def send_events(events):
     Send events to the API.
     """
     try:
-        response = requests.post(f"{globals.API_URL}/receive-events", json={"events": events}, timeout=10)
+        api_url = config()['url']['api_url'].as_str()
+        response = requests.post(f"{api_url}/receive-events", json={"events": events}, timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')
@@ -107,7 +108,8 @@ def send_resync_request():
     Send a resync filesystem request to the API.
     """
     try:
-        response = requests.post(f"{globals.API_URL}/resync", timeout=10)
+        api_url = config()['url']['api_url'].as_str()
+        response = requests.post(f"{api_url}/resync", timeout=10)
         if response.status_code != 200:
             return False
         status = response.json().get('status')
@@ -120,9 +122,10 @@ def send_resync_request():
 def handle_consumer_offline():
     if offline.get_last_poll() != offline.get_snapshot_time():
         print("Went offline. Saving file system snapshot.")
-        offline.save_simple_fs_snapshot(globals.FS_SNAPSHOT_FILE)
+        fs_snapshot_file = config()['paths']['fs_snapshot_file'].as_str()
+        offline.save_simple_fs_snapshot(fs_snapshot_file)
 
 if __name__ == "__main__":
-    os.makedirs(globals.CONFIG_DIR, exist_ok=True)
+    os.makedirs(config()['paths']['config_dir'].as_str(), exist_ok=True)
 
     main()
