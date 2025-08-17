@@ -10,7 +10,7 @@ Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local
 1. Install the required linux dependencies on the Pi:
     ```bash
     sudo apt update
-    sudo apt install fbi inotify-tools libheif-examples
+    sudo apt install fbi inotify-tools libheif-examples exiftran
     ```
 1. Install python `3.11.2` on the Pi
 
