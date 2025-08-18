@@ -55,7 +55,7 @@ def upload_images(request: Request):
     if len(heif_files) > 0:
         jpg_paths = [f"{base_dir}/albums/{os.path.dirname(heif_file[1])}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
         heif_paths = [f"{tmp_storage_dir}/{heif_file[1]}" for heif_file in heif_files]
-        exit_codes = utils.multiple_heif_to_jpg(heif_paths, jpg_paths, 80, True)
+        exit_codes = utils.heifs_to_jpgs(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
             saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
 
