@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from werkzeug.datastructures import FileStorage
 
-import utils
+from app.utils import utils
 
 class TestUtils:
     def test_clamp(self):
@@ -38,16 +38,14 @@ class TestUtils:
             assert utils.handle_duplicate_file(folder, original) == expected
 
     def test_heif_to_jpg(self, tmp_path):
-        test_dir = Path(__file__).parent
-        heif_path = f"{test_dir}/image.heif"
+        heif_path = f"{Path(__file__).parent}/images/image.heif"
         proc = utils.heif_to_jpg(heif_path, f"{tmp_path}/output.jpg", quality=50)
         exit_code = proc.wait()
         assert exit_code == 0
         assert os.path.exists(f"{tmp_path}/output.jpg")
 
     def test_muliple_heif_to_jpg(self, tmp_path):
-        test_dir = Path(__file__).parent
-        heif_path = f"{test_dir}/image.heif"
+        heif_path = f"{Path(__file__).parent}/images/image.heif"
         heif_paths = [heif_path for _ in range(3)]
         jpg_paths = [f"{tmp_path}/output_{i}.jpg" for i in range(3)]
 
@@ -65,21 +63,18 @@ class TestUtils:
         assert os.path.exists(f"{tmp_path}/output_4.jpg")
 
     def test_rotate_jpg(self, tmp_path):
-        rotate_90_cw_img="/9j/4AAQSkZJRgABAQEASABIAAD/4QCwRXhpZgAATU0AKgAAAAgACAEAAAQAAAABAAAAAQEBAAQAAAABAAAAAQESAAMAAAABAAYAAAEaAAUAAAABAAAAbgEbAAUAAAABAAAAdgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAfgAAAAAAAABIAAAAAQAAAEgAAAABAAOQAAAHAAAABDAyMTCgAAAHAAAABDAxMDCgAQADAAAAAf//AAAAAAAA/9sAQwADAgICAgMDAwMDBQQDAwQFBAQFBQgKDAgGBwcKDg0LCwoLDAwLDhEODRASExEQFhALDBUVFRQWGBcPEhgUFRQU/8AACwgAAQABAQERAP/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAgBAQAAPwD8qq//2Q=="
-        img_bytes = base64.b64decode(rotate_90_cw_img)
-        with open(f"{tmp_path}/output.jpg", "wb") as f:
-            f.write(img_bytes)
-        proc = utils.rotate_jpg(f"{tmp_path}/output.jpg")
+        test_img = f"{Path(__file__).parent}/images/rotate_90_cw.jpg"
+        tmp_img = f"{tmp_path}/output.jpg"
+        shutil.copy(test_img, tmp_img)
+        proc = utils.rotate_jpg(tmp_img)
         proc.wait()
-        self.verify_rotation(f"{tmp_path}/output.jpg")
+        self.verify_rotation(tmp_img)
 
     def test_rotate_jpgs(self, tmp_path):
-        rotate_90_cw_img="/9j/4AAQSkZJRgABAQEASABIAAD/4QCwRXhpZgAATU0AKgAAAAgACAEAAAQAAAABAAAAAQEBAAQAAAABAAAAAQESAAMAAAABAAYAAAEaAAUAAAABAAAAbgEbAAUAAAABAAAAdgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAfgAAAAAAAABIAAAAAQAAAEgAAAABAAOQAAAHAAAABDAyMTCgAAAHAAAABDAxMDCgAQADAAAAAf//AAAAAAAA/9sAQwADAgICAgMDAwMDBQQDAwQFBAQFBQgKDAgGBwcKDg0LCwoLDAwLDhEODRASExEQFhALDBUVFRQWGBcPEhgUFRQU/8AACwgAAQABAQERAP/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAgBAQAAPwD8qq//2Q=="
-        img_bytes = base64.b64decode(rotate_90_cw_img)
+        test_img = f"{Path(__file__).parent}/images/rotate_90_cw.jpg"
         files = [f"{tmp_path}/output_{i}.heif" for i in range(3)]
         for file in files:
-            with open(file, "wb") as f:
-                f.write(img_bytes)
+            shutil.copy(test_img, file)
         utils.rotate_jpgs(files)
         for file in files:
             self.verify_rotation(file)
