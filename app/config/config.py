@@ -5,7 +5,7 @@ from typing import Union
 _config = None
 
 class Config:
-    def __getitem__(self, key) -> Union['ConfigDict', 'ConfigValue']:
+    def __getitem__(self, key: str) -> Union['ConfigDict', 'ConfigValue']:
         raise NotImplementedError()
 
     def as_int(self) -> int:
@@ -90,11 +90,7 @@ class ConfigListValue:
     def as_bools(self):
         return [bool(v) for v in self.values]
 
-def load_config():
-    global _config
-    if _config is not None:
-        return  # already initialized
-
+def default_config():
     config_dir = os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album'))
     base_dir = os.path.abspath(os.path.expandvars(os.getenv('PHOTO_STORAGE_PATH', '$HOME/pi-photo-album')))
 
@@ -132,6 +128,10 @@ def load_config():
         }
     }
 
+    return config
+
+def load_config(config: dict = default_config()):
+    global _config
     _config = ConfigDict(config)
 
 def config():

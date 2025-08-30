@@ -2,10 +2,10 @@
 Utilities for handling when the app goes offline.
 """
 
-import datetime
 import os
 import json
 import csv
+from datetime import datetime, timezone, timedelta
 
 from app.config.config import config
 from app.utils import offline, filesystem
@@ -16,7 +16,7 @@ def write_poll_time():
     Resilient to crashes and restarts.
     """
     last_poll_file = config()['paths']['last_poll_file'].as_str()
-    timestamp = str(datetime.datetime.now(datetime.timezone.utc))
+    timestamp = str(datetime.now(timezone.utc))
     tmp_file = f'{last_poll_file}.tmp'
     with open(tmp_file, 'w') as f:
         f.write(timestamp + "\n")
@@ -31,10 +31,11 @@ def get_last_poll():
     """
     try:
         last_poll_file = config()['paths']['last_poll_file'].as_str()
+        print(last_poll_file)
         with open(last_poll_file, 'r') as f:
-            return datetime.datetime.fromisoformat(f.readline().strip())
+            return datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
-        return datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
+        return datetime.fromtimestamp(0, timezone.utc)
 
 def is_within_retention_period():
     """
@@ -42,7 +43,7 @@ def is_within_retention_period():
     """
     queue_retention_days = config()['queue']['retention_days'].as_int()
     last_poll_time = get_last_poll()
-    lower_bound = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=queue_retention_days)
+    lower_bound = datetime.now(timezone.utc) - timedelta(days=queue_retention_days)
     return last_poll_time >= lower_bound
 
 def save_simple_fs_snapshot(out_file: str):
@@ -72,7 +73,7 @@ def create_offline_event(event: str, path: str, new_path = ''):
     <timestamp>,<event>,<path>[,<new_path>]
     ```
     """
-    timestamp = str(datetime.datetime.now(datetime.timezone.utc))
+    timestamp = str(datetime.now(timezone.utc))
     if event == 'MOVE':
         return f"{timestamp},{event},{path},{new_path}"
     return f"{timestamp},{event},{path}"
@@ -110,7 +111,7 @@ def get_snapshot_time():
     try:
         fs_snapshot_file = config()['paths']['fs_snapshot_file'].as_str()
         with open(fs_snapshot_file, 'r') as f:
-            return datetime.datetime.fromisoformat(f.readline().strip())
+            return datetime.fromisoformat(f.readline().strip())
     except (FileNotFoundError, ValueError):
         return None
 
