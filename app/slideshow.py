@@ -34,15 +34,15 @@ def stop_slideshow():
 
 def load_settings():
     settings_file = config()['paths']['settings_file'].as_str()
-    default_settings = {
-        "album": config()['default_settings']['album'].as_str(),
-        "isEnabled": config()['default_settings']['isEnabled'].as_bool(),
-        "blend": config()['default_settings']['blend'].as_int(),
-        "speed": config()['default_settings']['speed'].as_int(),
-        "randomize": config()['default_settings']['randomize'].as_bool()
-    }
 
     if not os.path.exists(settings_file):
+        default_settings = {
+            "album": config()['default_settings']['album'].as_str(),
+            "isEnabled": config()['default_settings']['isEnabled'].as_bool(),
+            "blend": config()['default_settings']['blend'].as_int(),
+            "speed": config()['default_settings']['speed'].as_int(),
+            "randomize": config()['default_settings']['randomize'].as_bool()
+        }
         return default_settings
 
     with open(settings_file, 'r') as f:

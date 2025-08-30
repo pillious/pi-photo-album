@@ -1,9 +1,8 @@
 from pathlib import Path
-import os
-from copy import deepcopy
 
 from app.config import config
 from app.utils import filesystem
+from app.tests import utils
 
 class TestFilesystem:
     def test_get_file_structure(self, tmp_path: Path):
@@ -24,7 +23,7 @@ class TestFilesystem:
             }
         }
 
-        self.create_fs(tmp_path, fs)
+        utils.create_fs(tmp_path, fs)
         assert filesystem.get_file_structure(str(tmp_path / "albums")) == fs
 
     def test_is_file_owner(self):
@@ -65,7 +64,7 @@ class TestFilesystem:
                 }
             }
         }
-        self.create_fs(tmp_path, fs)
+        utils.create_fs(tmp_path, fs)
 
         expected = [
             "user1/a/file2.png",
@@ -150,20 +149,8 @@ class TestFilesystem:
 
         for i, (path, fs, expected_fs) in enumerate(test_cases):
             base_dir = tmp_path / str(i)
-            self.create_fs(base_dir, fs)
+            utils.create_fs(base_dir, fs)
             filesystem.remove_dirs(str(base_dir / "albums"), path)
             assert filesystem.get_file_structure(str(base_dir))[str(i)]== expected_fs
 
-    def create_fs(self, root: Path, fs: dict):
-        def _create_fs(path, tree):
-            for name, content in tree.items():
-                current_path = os.path.join(path, name)
-                if isinstance(content, dict):
-                    os.mkdir(current_path)
-                    _create_fs(current_path, content)
-                else:
-                    with open(current_path, "w") as _:
-                        pass
 
-        os.makedirs(root, exist_ok=True)            
-        _create_fs(root, fs)
