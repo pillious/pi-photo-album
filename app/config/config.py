@@ -53,7 +53,10 @@ class ConfigValue(Config):
         return int(self.val)
 
     def as_bool(self):
-        return bool(self.val)
+        data = ast.literal_eval(self.val)
+        if not isinstance(data, bool):
+            raise ValueError("Config value is not a boolean")
+        return data
 
     def as_list(self):
         data = ast.literal_eval(self.val)
@@ -70,11 +73,11 @@ class ConfigValue(Config):
     def __repr__(self):
         return self.val
     
-    
+
     
 class ConfigSetValue(Config):
     def __init__(self, values: set):
-        self.values = values
+        self.values = {str(v) for v in values}
 
     def as_strs(self):
         return {str(v) for v in self.values}
@@ -83,11 +86,17 @@ class ConfigSetValue(Config):
         return {int(v) for v in self.values}
 
     def as_bools(self):
-        return {bool(v) for v in self.values}
+        vals = set()
+        for v in self.values:
+            data = ast.literal_eval(v)
+            if not isinstance(data, bool):
+                raise ValueError("Config value is not a set of booleans")
+            vals.add(data)
+        return vals
 
 class ConfigListValue:
     def __init__(self, values: list):
-        self.values = values
+        self.values = [str(v) for v in values]
 
     def as_strs(self):
         return [str(v) for v in self.values]
@@ -96,7 +105,13 @@ class ConfigListValue:
         return [int(v) for v in self.values]
 
     def as_bools(self):
-        return [bool(v) for v in self.values]
+        vals = []
+        for v in self.values:
+            data = ast.literal_eval(v)
+            if not isinstance(data, bool):
+                raise ValueError("Config value is not a list of booleans")
+            vals.append(data)
+        return vals
 
 def default_config():
     config_dir = os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album'))

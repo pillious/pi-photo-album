@@ -35,29 +35,30 @@ class TestConfig:
             cfg["test"].as_int()
 
     def test_to_bool(self):
-        c = {"test": {"enabled": True}}
+        c = {"test": {"enabled": True, "disabled": False}}
         config.load_config(c)
         cfg = config.config()
         assert cfg["test"]["enabled"].as_bool() is True
+        assert cfg["test"]["disabled"].as_bool() is False
         with raises(NotImplementedError):
             cfg["test"].as_bool()
 
     def test_to_set(self):
-        c = {"test": {"items": {"1", "2", "3"}}}
+        c = {"test": {"items": {"1", "2", "3"}, "enabled": {True, False, True}}}
         config.load_config(c)
         cfg = config.config()
         assert cfg["test"]["items"].as_set().as_strs() == {"1", "2", "3"}
         assert cfg["test"]["items"].as_set().as_ints() == {1, 2, 3}
-        assert cfg["test"]["items"].as_set().as_bools() == {True, True, True}
+        assert cfg["test"]["enabled"].as_set().as_bools() == {True, False, True}
         with raises(NotImplementedError):
             cfg["test"].as_set()
 
     def test_to_list(self):
-        c = {"test": {"items": ["1", "2", "3"]}}
+        c = {"test": {"items": ["1", "2", "3"], "enabled": [True, False, True]}}
         config.load_config(c)
         cfg = config.config()
         assert cfg["test"]["items"].as_list().as_strs() == ["1", "2", "3"]
         assert cfg["test"]["items"].as_list().as_ints() == [1, 2, 3]
-        assert cfg["test"]["items"].as_list().as_bools() == [True, True, True]
+        assert cfg["test"]["enabled"].as_list().as_bools() == [True, False, True]
         with raises(NotImplementedError):
             cfg["test"].as_list()
