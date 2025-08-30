@@ -35,6 +35,12 @@ class ConfigDict(Config):
 
     def __repr__(self):
         return str(self.config)
+    
+    def __iter__(self):
+        return (
+            (k, dict(v) if isinstance(v, ConfigDict) else v.val)
+            for k, v in self.config.items()
+        )
 
 class ConfigValue(Config):
     def __init__(self, val):
@@ -63,7 +69,9 @@ class ConfigValue(Config):
 
     def __repr__(self):
         return self.val
-
+    
+    
+    
 class ConfigSetValue(Config):
     def __init__(self, values: set):
         self.values = values
