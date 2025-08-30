@@ -142,11 +142,10 @@ class TestOffline:
             assert self.times_approx_equal(datetime.fromisoformat(pe["timestamp"]), e["timestamp"])
 
     def test_clear_offline_events(self, tmp_path: Path):
-        events_file = str(tmp_path / "offline_events.json")
-        with open(events_file, "w") as f:
-            f.write("TEST")
-        offline.clear_offline_events(events_file)
-        evts = offline.get_offline_events(events_file)
+        events_file = tmp_path / "offline_events.json"
+        events_file.write_text("TEST")
+        offline.clear_offline_events(str(events_file))
+        evts = offline.get_offline_events(str(events_file))
         assert evts == []
 
     def test_get_snapshot_time_file_not_found(self):

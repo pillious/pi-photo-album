@@ -59,7 +59,7 @@ def key_to_abs_path(key: str):
     return f'{config()["paths"]["base_dir"].as_str()}/{key}'
 
 def strip_base_dir(abs_path: str):
-    return abs_path[len(f"{config()['paths']['base_dir'].as_str()}/"):]
+    return abs_path.removeprefix(f"{config()['paths']['base_dir'].as_str()}/")
 
 def silentremove(path: str):
     try:
@@ -71,15 +71,13 @@ def remove_albums_prefix(path: str):
     """
     Removes the 'albums/' prefix from the path if it exists.
     """
-    if path.startswith('albums/'):
-        return path[7:]
-    return path
+    return path.removeprefix('albums/')
 
 def remove_dirs(base: str, path: str):
     """
     Removes all empty dirs in the path, up to the base directory.
 
-    - base format: `/.../.../albums`
+    - base format: `abs(.../.../albums)`
     - path format: `[Shared|username]/.../.../<folder>`
 
     This won't remove the [Shared|username] folder even if it is empty.
