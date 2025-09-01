@@ -10,8 +10,8 @@ import botocore.config
 import botocore.exceptions
 
 from app.utils.aws import get_aws_autorefresh_session
-from app.cloud_adapters.adapter import Adapter
-from app.cloud_adapters.exceptions import AdapterException
+from app.cloud_clients.cloud_client import CloudClient
+from app.cloud_clients.exceptions import CloudClientException
 
 def retry(max_retries=3, exceptions=(Exception,)):
     def decorator(func):
@@ -29,7 +29,7 @@ def retry(max_retries=3, exceptions=(Exception,)):
         return wrapper
     return decorator
 
-class S3Adapter(Adapter):
+class S3Client(CloudClient):
     def __init__(self, bucket_name: str):
         self.bucket_name = bucket_name
 
@@ -56,9 +56,6 @@ class S3Adapter(Adapter):
         except botocore.exceptions.EndpointConnectionError:
             return None
 
-    def get_album(self, album_path):
-        pass
-
     @retry()
     def list_album(self, album_path: str) -> List[str]:
         paginator = self.s3_client.get_paginator('list_objects_v2')
@@ -79,7 +76,7 @@ class S3Adapter(Adapter):
             obj = self.s3_client.get_object(Bucket=self.bucket_name, Key=image_key)
             return obj['Body'].read()
         except Exception as e:
-            AdapterException(f"Error getting image from S3: {e}")
+            CloudClientException(f"Error getting image from S3: {e}")
         return bytes()
 
     @retry()
@@ -87,7 +84,7 @@ class S3Adapter(Adapter):
         try:
             self.s3_client.upload_file(Bucket=self.bucket_name, Filename=image_path, Key=image_key)
         except Exception as e:
-            raise AdapterException(f"Error uploading image to S3: {e}")
+            raise CloudClientException(f"Error uploading image to S3: {e}")
 
     @retry()
     def move(self, src_key: str, dest_key: str):
@@ -99,14 +96,14 @@ class S3Adapter(Adapter):
             )
             self.delete(src_key)
         except Exception as e:
-            raise AdapterException(f"Error moving image in S3: {e}")
+            raise CloudClientException(f"Error moving image in S3: {e}")
 
     @retry()
     def delete(self, image_key: str):
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=image_key)
         except Exception as e:
-            AdapterException(f"Error deleting image from S3: {e}")
+            CloudClientException(f"Error deleting image from S3: {e}")
 
     def get_bulk(self, image_paths: List[str], image_keys: List[str]) -> Tuple[List[str], List[str]]:
         success = []
@@ -195,18 +192,7 @@ class S3Adapter(Adapter):
                     MessageGroupId=message_group_id
                 )
         except Exception as e:
-            raise AdapterException(f"Error sending message to SQS: {e}")
+            raise CloudClientException(f"Error sending message to SQS: {e}")
 
-_CLOUD_ADAPTER = None
-
-def init_cloud_client():
-    global _CLOUD_ADAPTER
-    if _CLOUD_ADAPTER is not None:
-        return # Already initialized
-
-    _CLOUD_ADAPTER = S3Adapter(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))
-
-def cloud_client() -> S3Adapter:
-    if _CLOUD_ADAPTER is None:
-        raise RuntimeError("Cloud adapter not initialized. Call init_cloud_adapter() first.")
-    return _CLOUD_ADAPTER
+def new_aws_client():
+    return S3Client(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))

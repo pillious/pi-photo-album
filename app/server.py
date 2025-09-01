@@ -3,7 +3,8 @@ from flask import Flask, request, jsonify
 
 from app import slideshow
 from app.announcer import init_event_announcer
-from app.cloud_adapters.s3_adapter import init_cloud_client
+from app.cloud_clients.cloud_client import init_cloud_client
+from app.cloud_clients.s3_client import new_aws_client
 from app.config.config import config, load_config
 from app.utils import utils
 from app.routes import \
@@ -16,7 +17,7 @@ app = Flask(__name__)
 
 utils.load_env([".env", os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/.env'))])
 load_config()
-init_cloud_client()
+init_cloud_client(new_aws_client())
 init_event_announcer()
 
 app.config['MAX_CONTENT_LENGTH'] = config()['files']['max_content_length'].as_int()

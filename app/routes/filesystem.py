@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 
 from app.config.config import config
 from app.utils import utils, offline, filesystem, aws
-from app.cloud_adapters.s3_adapter import cloud_client
+from app.cloud_clients.cloud_client import cloud_client
 
 def upload_images(request: Request):
     file_ids: dict[str, str] = {} # Dict[filename: guid]

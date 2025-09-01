@@ -1,0 +1,4 @@
+class CloudClientException(Exception):
+    pass
+
+    

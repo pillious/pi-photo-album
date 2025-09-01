@@ -5,7 +5,7 @@ import queue
 
 from app.utils import filesystem, offline, aws
 from app.announcer import event_announcer
-from app.cloud_adapters.s3_adapter import cloud_client
+from app.cloud_clients.cloud_client import cloud_client
 from app.config.config import config
 
 def receive_events(request: Request):
