@@ -3,6 +3,7 @@ venv/
 **/*__pycache__/
 
 admin/aws/tmp/
+admin/aws/users.txt
 
 # Local .terraform directories
 **/.terraform/*

@@ -19,12 +19,21 @@ Admin related setup should be done from a seperate machine, not the raspberry pi
     terraform apply
     ```
 
+1. Create a `users.txt` file `admin/aws/`
+
+    > [!Tip]
+    > This file should contain a list of usernames, one per line. Usernames must be unique, max length of 64 chars, and may only contain [a-zA-Z0-9_-].
+
+    Example:
+    ```
+    user1
+    user2
+    user3
+    ```
+
 ## How to onboard a new user to the app
 
-1. Add a username to the list of users [main.tf](./main.tf#4)
-
-    > Important
-    > Usernames must be unique, max length of 64 chars, and may only contain [a-zA-Z0-9_-].
+1. Add a username to the list of users `admin/aws/users.txt`
 
 1. Create the user and resources:
     ```bash
