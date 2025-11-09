@@ -13,7 +13,7 @@ def get_file_extension(filename: str):
 
 def handle_duplicate_file(folder: str, name: str):
     """
-    If the file already exists, convert to a unique name with format "*_int". 
+    If the file already exists, convert to a unique name with format "*_int".
      """
     loc = f"{folder}/{name}"
     if os.path.exists(loc):
@@ -79,7 +79,7 @@ def save_image_to_disk(album_path: str, image_name: str, image: FileStorage, han
     image.save(loc)
     return loc
 
-def partial_dict_merge(d: dict, u: dict): 
+def partial_dict_merge(d: dict, u: dict):
     """
     Performs a deep merge on `d` to include all keys from `u` that are not already in `d`.
     """
@@ -94,13 +94,12 @@ def load_env(dirs: list[str]):
     for d in dirs:
         d = os.path.abspath(os.path.expandvars(d))
         if os.path.exists(d):
-            print(load_dotenv(d))
+            load_dotenv(d)
             print(f"Loaded env vars from {d}.")
             return
 
     print(f"Failed to load env vars from {dirs}.")
 
 def secure_path(path: str) -> str:
-    print([secure_filename(p) for p in path.split('/')])
     return "/".join([secure_filename(p) for p in path.split('/')])
 

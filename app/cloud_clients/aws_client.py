@@ -29,7 +29,7 @@ def retry(max_retries=3, exceptions=(Exception,)):
         return wrapper
     return decorator
 
-class S3Client(CloudClient):
+class AWSClient(CloudClient):
     def __init__(self, bucket_name: str):
         self.bucket_name = bucket_name
 
@@ -38,7 +38,7 @@ class S3Client(CloudClient):
 
     def _create_s3_client(self):
         return boto3.client(
-            's3', 
+            's3',
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
             region_name=os.getenv('AWS_REGION'),
@@ -174,7 +174,7 @@ class S3Client(CloudClient):
             Bucket=self.bucket_name,
             Delete={
                 'Objects': [{'Key': k} for k in image_keys]
-            } 
+            }
         )
         success = [item['Key'] for item in resp.get('Deleted', [])]
         failure = [item['Key'] for item in resp.get('Errors', [])]
@@ -195,4 +195,4 @@ class S3Client(CloudClient):
             raise CloudClientException(f"Error sending message to SQS: {e}")
 
 def new_aws_client():
-    return S3Client(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))
+    return AWSClient(os.getenv('S3_BUCKET_NAME', 'pi-photo-album-s3'))

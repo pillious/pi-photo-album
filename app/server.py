@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from app import slideshow
 from app.announcer import init_event_announcer
 from app.cloud_clients.cloud_client import init_cloud_client
-from app.cloud_clients.s3_client import new_aws_client
+from app.cloud_clients.aws_client import new_aws_client
 from app.config.config import config, load_config
 from app.utils import utils
 from app.routes import \
