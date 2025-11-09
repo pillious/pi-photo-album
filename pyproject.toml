@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pi-photo-album"
+version = "0.1.0"
+description = "A digital photo album for Raspberry Pi"
+requires-python = ">=3.11"
+dependencies = [
+    "Flask==3.1.0",
+    "boto3==1.36.13",
+    "python-dotenv==1.0.1",
+    "requests==2.32.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build==1.3.0",
+    "moto[s3,sqs,iam]==5.1.12",
+]
+
+[tool.setuptools]
+packages = {find = {}}
+
+[tool.setuptools.data-files]
+"" = ["startup.sh", "install.sh", "pi-photo-album.service.tmpl"]

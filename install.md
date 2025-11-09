@@ -1,164 +1,117 @@
 # Installation Guide for Pi Photo Album
 
-This guide assumes you are setting up the Raspberry Pi from a seperate computer and will be using SSH to access the Raspberry Pi.
+This guide assumes you are setting up the Raspberry Pi from a separate computer and will be using SSH to access the Raspberry Pi.
 
-## How to Setup?
+## Table of Contents
 
-Open two terminals. One SSH'd into the Raspberry Pi, and the other on your local computer.
+- [Prerequisites](#prerequisites)
+- [Installation Steps](#installation-steps)
+  - [1. Download the app](#1-download-the-app)
+  - [2. Run the installation script](#2-run-the-installation-script)
+  - [3. Enable Raspberry Pi Auto-login](#3-enable-raspberry-pi-auto-login)
+  - [4. Configure Auto-Start on Boot](#4-configure-auto-start-on-boot)
+  - [5. Setup Environment Variable File](#5-setup-environment-variable-file)
+  - [6. Start the Application](#6-start-the-application)
 
-### Install Dependencies:
-1. Install the required linux dependencies on the Pi:
-    ```bash
-    sudo apt update
-    sudo apt install fbi inotify-tools libheif-examples exiftran
-    ```
-1. Install python `3.11.2` on the Pi
+## Prerequisites
 
-### Setup Framebuffer Image Viewer (fbi) for non root user:
+- Raspberry Pi with SSH access
+- Internet connection on the Raspberry Pi
+- Python 3.13 or higher installed on the Raspberry Pi
 
-1. Check if user is in the `tty` and `video` groups:
-    ```bash
-    groups pi
-    ```
-    The output should include `tty` and `video`.
+## Installation Steps
 
-    If not, add the user to the `tty` and `video` groups:
-    ```bash
-    sudo usermod -aG tty pi
-    sudo usermod -aG video pi
-    ```
+### 1. Download the app
+   https://github.com/pillious/pi-photo-album/releases/
+   ```bash
+   VERSION=<version> && \
+   wget https://github.com/pillious/pi-photo-album/releases/download/v$VERSION/pi_photo_album-$VERSION.tar.gz && \
+   sudo rm -rf /usr/local/bin/pi-photo-album && \
+   sudo tar -xzf pi_photo_album-$VERSION.tar.gz -C /usr/local/bin && \
+   sudo mv /usr/local/bin/pi_photo_album-$VERSION /usr/local/bin/pi-photo-album
+   ```
+### 2. Run the installation script
+   ```bash
+   /usr/local/bin/pi-photo-album/install.sh
+   ```
 
-1. Allow `fbi` to control TTY without root:
-    ```bash
-    sudo setcap cap_sys_tty_config+ep $(which fbi)
-    ```
+   ```
+   sudo reboot
+   ```
+   - Rebooting is only required after the first time running the installation script.
 
-1. Reboot the Raspberry Pi:
-    ```bash
-    sudo reboot
-    ```
-
-### Enable Raspberry Pi Auto-login
+### 3. Enable Raspberry Pi Auto-login
 
 1. Run `sudo raspi-config` to enable Auto-login
 
-1. Choose option: `1 System Options`
+2. Choose option: `1 System Options`
 
-1. Choose option: `S5 Boot / Auto Login`
+3. Choose option: `S5 Boot / Auto Login`
 
-1. Choose option: `B2 Console Autologin`
+4. Choose option: `B2 Console Autologin`
 
-1. Select Finish, and reboot the Raspberry Pi (`sudo reboot`).
+5. Select Finish, and reboot the Raspberry Pi (`sudo reboot`).
 
-### Copy App to Raspberry Pi:
-1. Create app directory on the Pi:
-    ```bash
-    mkdir -p /usr/local/bin/pi-photo-album
-    ```
+### 4. Configure Auto-Start on Boot
 
-1. Give non-root ownership to dir:
-    ```bash
-    sudo chown -R $USER:$USER /usr/local/bin/pi-photo-album
-    ```
+1. [Optional] Enable the service to start on boot:
+   ```bash
+   sudo systemctl enable pi-photo-album
+   ```
 
-1. Copy app to the Pi:
-    ```bash
-    scp -r app/ pi@<raspberry_pi_ip>:/usr/local/bin/pi-photo-album
-    ```
+### 5. Setup Environment Variable File
 
-1. Copy startup script to the Pi:
-    ```bash
-    scp startup.sh pi@<raspberry_pi_ip>:/usr/local/bin/pi-photo-album/
-    ```
+1. Create the configuration directory:
+   ```bash
+   touch ~/.config/pi-photo-album/.env
+   ```
 
-1. Make the startup script executable:
-    ```bash
-    chmod +x /usr/local/bin/pi-photo-album/startup.sh
-    ```
+3. Add the following environment variables:
 
-1. Also make the `display_slideshow.sh` script executable:
-    ```bash
-    chmod +x /usr/local/bin/pi-photo-album/app/display_slideshow.sh
-    ```
+   > [!Tip]
+   > Follow the [New User Onboarding Guide](admin/aws/onboard.md) to create the AWS related values.
 
-### Setup Python Virtual Environment:
+   ```bash
+   AWS_ACCESS_KEY_ID=your_access_key_here
+   AWS_SECRET_ACCESS_KEY=your_secret_key_here
+   AWS_REGION=your_region_here
+   USERNAME=your_username_here
 
-1. Create a virtual environment:
-    ```bash
-    python3 -m venv /usr/local/bin/pi-photo-album/venv
-    ```
+   PUSH_QUEUE_URL=your_push_queue_url
+   PUSH_QUEUE_ROLE=your_push_queue_role
+   RECEIVE_EVENT_QUEUE_URL=your_receive_queue_url
 
-1. Activate the virtual environment:
-    ```bash
-    source /usr/local/bin/pi-photo-album/venv/bin/activate
-    ```
+   #
+   # Optional configuration:
+   #
+   API_PORT=5555
+   S3_BUCKET_NAME=pi-photo-album-s3
+   PHOTO_STORAGE_PATH=$HOME/pi-photo-album
+   CONFIG_PATH=$HOME/.config/pi-photo-album
+   ```
 
-1. Install the required Python packages:
-    ```bash
-    pip install -r /usr/local/bin/pi-photo-album/app/requirements.txt
-    ```
+### 6. Start the Application
 
-1. Exit the virtual environment:
-    ```bash
-    deactivate
-    ```
-
-### Configure Auto-Start on Boot:
-
-1. Copy the app's systemd service file to the Pi:
-    ```bash
-    scp pi-photo-album.service pi@<raspberry_pi_ip>:~
-    sudo mv pi-photo-album.service /etc/systemd/system/
-    ```
-
-1. Enable the service to start on boot:
-    ```bash
-    sudo systemctl enable pi-photo-album
-    ```
-
-### Setup Environment Variable File:
-
-1. Create env file:
-    ```bash
-    mkdir -p ~/.config/pi-photo-album
-    touch ~/.config/pi-photo-album/.env
-    ```
-
-1. Add the following environment variables to the `.env` file:
-
-    > [!Tip]
-    > Follow the [New User Onboarding Guide](admin/aws/onboard.md) to create the AWS related values.
-
-    ```bash
-    AWS_ACCESS_KEY_ID=
-    AWS_SECRET_ACCESS_KEY=
-    AWS_REGION=
-    USERNAME=
-
-    PUSH_QUEUE_URL=
-    PUSH_QUEUE_ROLE=
-    RECEIVE_EVENT_QUEUE_URL=
-
-    #
-    # Optional configuration:
-    #
-    API_PORT=<port_number [default: 5555]>
-    # S3_BUCKET_NAME must match the one created in `admin/aws/s3.tf`
-    S3_BUCKET_NAME=<your_s3_bucket_name [default: pi-photo-album-s3]>
-    PHOTO_STORAGE_PATH=<path_to_photo_storage [default: $HOME/pi-photo-album]>
-    # CONFIG_PATH should also be set if PHOTO_STORAGE_PATH is set.
-    CONFIG_PATH=<path_to_config_folder [default: $HOME/.config/pi-photo-album]> 
-    ```
-
-### Start the Application:
 1. Start the service:
-    ```bash
-    sudo systemctl start pi-photo-album
-    ```
+   ```bash
+   sudo systemctl start pi-photo-album
+   ```
 
-    OR 
-    
-    Reboot the Raspberry Pi to start the service automatically:
-    ```bash
-    sudo reboot
-    ```
+   OR
+
+   Reboot the Raspberry Pi to start the service automatically:
+   ```bash
+   sudo reboot
+   ```
+
+2. Stopping the service:
+   ```bash
+   sudo systemctl
+
+3. Troubleshooting:
+   ```bash
+   sudo systemctl status pi-photo-album
+   ```
+   ```bash
+   journalctl -u pi-photo-album.service
+   ```

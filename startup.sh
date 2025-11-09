@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PYTHON_PATH=${1:-$(which python)}
+echo $PYTHON_PATH
 
 # handle app termination
 cleanup() {
@@ -12,14 +13,14 @@ cleanup() {
 
   echo "Killing display_slideshow.sh"
   pkill -15 -f display_slideshow.sh || true
-  
+
   if [[ -n "$EVENT_CONSUMER_PID" ]]; then
     echo "Killing event consumer (PID: $EVENT_CONSUMER_PID)"
     kill -TERM "$EVENT_CONSUMER_PID" || true
     wait "$EVENT_CONSUMER_PID" || true
   fi
 
-  sleep 5   
+  sleep 5
   if [[ -n "$API_PID" ]]; then
     echo "Killing API (PID: $API_PID)"
     kill -TERM "$API_PID" || true

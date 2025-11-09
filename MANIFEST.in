@@ -1,0 +1,18 @@
+# Includes
+recursive-include app *.sh
+recursive-include app/static *
+recursive-include app/templates *
+
+# Excludes
+prune */__pycache__
+prune */.pytest_cache
+prune admin
+prune venv
+
+prune */tests
+global-exclude *test*.py
+
+global-exclude *.md
+global-exclude *.txt
+global-exclude *.gitignore
+global-exclude *.env

@@ -5,7 +5,7 @@ After=multi-user.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/usr/local/bin/pi-photo-album/startup.sh /usr/local/bin/pi-photo-album/venv/bin/python
+ExecStart=/usr/local/bin/pi-photo-album/startup.sh {python_path}
 Restart=on-failure
 RestartSec=10
 
