@@ -10,11 +10,56 @@ from app.config.config import config
 from app.utils import utils, offline, filesystem, aws
 from app.cloud_clients.cloud_client import cloud_client
 
+
+class SavedFile:
+    """Represents a file that has been saved to disk."""
+    def __init__(self, guid: str, file_path: str):
+        self.guid = guid
+        self.file_path = file_path
+
+    def get_file_path(self) -> str:
+        """Get the full file path."""
+        return self.file_path
+
+    def get_guid(self) -> str:
+        """Get the file GUID."""
+        return self.guid
+
+    def get_stripped_path(self) -> str:
+        """Get the file path with base directory stripped."""
+        return filesystem.strip_base_dir(self.file_path)
+
+    def is_jpg(self) -> bool:
+        """Check if the file is a JPG/JPEG."""
+        return utils.get_file_extension(self.file_path) in {'jpg', 'jpeg'}
+
+
+class HeifFile:
+    """Represents a HEIF/HEIC file that needs to be converted to JPG."""
+    def __init__(self, guid: str, album_path: str, image_name: str):
+        self.guid = guid
+        self.album_path = album_path
+        # Format: <name>.<ext>
+        self.image_name = image_name
+
+    def get_guid(self) -> str:
+        """Get the file GUID."""
+        return self.guid
+
+    def get_heif_path(self, tmp_storage_dir: str) -> str:
+        """Get the full path to the temporary HEIF file."""
+        return f"{tmp_storage_dir}/{self.image_name}"
+
+    def get_jpg_path(self, base_dir: str) -> str:
+        """Get the full path where the converted JPG should be saved."""
+        jpg_name = self.image_name.rsplit('.', 1)[0] + '.jpg'
+        return f"{base_dir}/albums/{self.album_path}/{jpg_name}"
+
 def upload_images(request: Request):
-    file_ids: dict[str, str] = {} # Dict[filename: guid]
-    saved_files: list[tuple[str, str]] = [] # List[(guid, file_path)]
-    heif_files: list[tuple[str, str]] = [] # List[(guid, file_path)]
+    saved_files: list[SavedFile] = []
+    heif_files: list[HeifFile] = []
     failed_files: list[str] = [] # List[guid]
+    file_ids: dict[str, str] = {} # Dict[filename: guid]
 
     req_metadata = request.form.get("metadata")
     if not req_metadata:
@@ -45,33 +90,39 @@ def upload_images(request: Request):
                 continue
 
             if file_extension in {'heif', 'heic'}:
-                heif_files.append((guid, image_name))
+                heif_files.append(HeifFile(guid, album_path, image_name))
                 image.save(f"{tmp_storage_dir}/{image_name}")
             else:
                 loc = utils.save_image_to_disk(f'{base_dir}/albums/{album_path}', image_name, image, True)
-                saved_files.append((guid, loc))
+                saved_files.append(SavedFile(guid, loc))
 
     # Parallelize the conversion of HEIF files to JPG.
     if len(heif_files) > 0:
-        jpg_paths = [f"{base_dir}/albums/{os.path.dirname(heif_file[1])}/{heif_file[1].rsplit('.', 1)[0]}.jpg" for heif_file in heif_files]
-        heif_paths = [f"{tmp_storage_dir}/{heif_file[1]}" for heif_file in heif_files]
+        jpg_paths = [heif_file.get_jpg_path(base_dir) for heif_file in heif_files]
+        heif_paths = [heif_file.get_heif_path(tmp_storage_dir) for heif_file in heif_files]
         exit_codes = utils.heifs_to_jpgs(heif_paths, jpg_paths, 80, True)
         for i, code in enumerate(exit_codes):
-            saved_files.append((heif_files[i][0], jpg_paths[i])) if code == 0 else failed_files.append(heif_files[i][0])
+            if code == 0:
+                saved_files.append(SavedFile(heif_files[i].get_guid(), jpg_paths[i]))
+            else:
+                failed_files.append(heif_files[i].get_guid())
 
     # Parallelize the rotation of JPG files.
-    jpg_paths = [sf[1] for sf in saved_files if utils.get_file_extension(sf[1]) in {'jpg', 'jpeg'}]
+    jpg_paths = [sf.get_file_path() for sf in saved_files if sf.is_jpg()]
     if len(jpg_paths) > 0:
         utils.rotate_jpgs(jpg_paths)
 
     if not aws.ping(config()['url']['s3_ping_url'].as_str()):
-        offline_events = [offline.create_offline_event('PUT', sf[1]) for sf in saved_files]
+        offline_events = [offline.create_offline_event('PUT', sf.get_file_path()) for sf in saved_files]
         offline_events_file = config()['paths']['offline_events_file'].as_str()
         offline.save_offline_events(offline_events_file, offline_events)
     elif len(saved_files) > 0:
         # Bulk upload to cloud
-        success, failure = cloud_client().insert_bulk([sf[1] for sf in saved_files], [filesystem.strip_base_dir(sf[1]) for sf in saved_files])
-        failed_files = failed_files + [sf[0] for sf in saved_files if filesystem.strip_base_dir(sf[1]) in failure]
+        success, failure = cloud_client().insert_bulk(
+            [sf.get_file_path() for sf in saved_files],
+            [sf.get_stripped_path() for sf in saved_files]
+        )
+        failed_files = failed_files + [sf.get_guid() for sf in saved_files if sf.get_stripped_path() in failure]
 
         # Push events to queue
         message = json.dumps({"events": [{"event": "PUT", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
@@ -81,7 +132,7 @@ def upload_images(request: Request):
     # success: the paths of the files that were successfully uploaded.
     # return jsonify({"status": "ok", "failed": failed_files, "success": success})
     print(f'failed to upload: {failed_files}')
-    return jsonify({"status": "ok", "failed": [], "success": [filesystem.strip_base_dir(sf[1]) for sf in saved_files]})
+    return jsonify({"status": "ok", "failed": [], "success": [sf.get_stripped_path() for sf in saved_files]})
 
 def delete_images(request: Request):
     req_json: dict | None = request.json
