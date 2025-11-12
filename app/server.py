@@ -102,4 +102,6 @@ if __name__ == '__main__':
         album_path = f"{base_dir}/albums/{settings['album']}"
         slideshow.start_slideshow(album_path, settings["blend"], settings["speed"])
 
-    app.run(debug=True, host='0.0.0.0', use_reloader=True, port=int(os.getenv('API_PORT', 5555)))
+    # Disable debug mode and reloader in production
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', use_reloader=debug_mode, port=int(os.getenv('API_PORT', 5555)))
