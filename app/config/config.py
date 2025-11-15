@@ -35,7 +35,7 @@ class ConfigDict(Config):
 
     def __repr__(self):
         return str(self.config)
-    
+
     def __iter__(self):
         return (
             (k, dict(v) if isinstance(v, ConfigDict) else v.val)
@@ -72,9 +72,9 @@ class ConfigValue(Config):
 
     def __repr__(self):
         return self.val
-    
 
-    
+
+
 class ConfigSetValue(Config):
     def __init__(self, values: set):
         self.values = {str(v) for v in values}
@@ -153,8 +153,10 @@ def default_config():
 
     return config
 
-def load_config(config: dict = default_config()):
+def load_config(config: dict = None):
     global _config
+    if config is None:
+        config = default_config()
     _config = ConfigDict(config)
 
 def config():

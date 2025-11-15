@@ -131,7 +131,8 @@ def upload_images(request: Request):
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
     # return jsonify({"status": "ok", "failed": failed_files, "success": success})
-    print(f'failed to upload: {failed_files}')
+    if failed_files:
+        print(f'failed to upload: {failed_files}')
     return jsonify({"status": "ok", "failed": [], "success": [sf.get_stripped_path() for sf in saved_files]})
 
 def delete_images(request: Request):

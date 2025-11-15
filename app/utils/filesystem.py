@@ -37,11 +37,13 @@ def is_file_owner(file_path: str):
     allowed_prefixes = config()['files']['allowed_prefixes'].as_set().as_strs()
     return file_path.split('/', 1)[0] in allowed_prefixes
 
-def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = []):
+def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = None):
     """
     List all files in a directory and its subdirectories.
     If `allowed_prefixes` is provided, only include files in those subdirectories.
     """
+    if allowed_prefixes is None:
+        allowed_prefixes = []
     file_list = []
     for root, dirs, files in os.walk(dir_path):
         root = root.replace(dir_path + "/", "")
@@ -53,7 +55,7 @@ def list_files_in_dir(dir_path: str, allowed_prefixes: list[str] = []):
 def key_to_abs_path(key: str):
     """
     Converts a `key` of the format "albums/..." to the abs path on the local system.
-    
+
     `key` is the path stored on the cloud.
     """
     return f'{config()["paths"]["base_dir"].as_str()}/{key}'

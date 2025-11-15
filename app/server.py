@@ -26,7 +26,7 @@ def enforce_mime(mime_type):
     def decorator(func):
         def wrapper(*args, **kwargs):
             content_type = request.content_type
-            if content_type.split(';')[0] != mime_type:
+            if not content_type or content_type.split(';')[0] != mime_type:
                 return jsonify({"status": "error", "message": f"Invalid content type. Expected {mime_type}."}), 400
             return func(*args, **kwargs)
         wrapper.__name__ = func.__name__
