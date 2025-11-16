@@ -59,7 +59,7 @@ const updateSettingsUI = (newState) => {
     const albumSelect = form.elements.namedItem('album');
     albumSelect.innerHTML = albumSelect.firstElementChild.outerHTML;
 
-    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, true));
+    const albumPaths = removeAlbumsPrefixes(getAlbumPaths(fileSystemSnapshot, false));
     for (const path of albumPaths) {
         const option = document.createElement('option');
         option.value = path;
