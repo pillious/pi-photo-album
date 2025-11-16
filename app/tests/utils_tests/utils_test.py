@@ -85,6 +85,14 @@ class TestUtils:
         for file in files:
             self.verify_rotation(file)
 
+    def test_rotate_jpg_by_degree(self, tmp_path: Path):
+        test_img = Path(__file__).parent.parent / "images" / "rotate_90_cw.jpg"
+        tmp_img = tmp_path / "image.jpg"
+        shutil.copy(test_img, tmp_img)
+        exit_code = utils.rotate_jpg_by_degree(tmp_img, 90)
+        assert exit_code == 0
+        self.verify_rotation(tmp_img)
+
     def verify_rotation(self, jpg_path):
         proc = subprocess.Popen(
             ["exiftool", "-Orientation", "-n", "-s3", jpg_path],

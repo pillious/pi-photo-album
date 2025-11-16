@@ -18,9 +18,8 @@ def receive_events(request: Request):
     base_dir = config()['paths']['base_dir'].as_str()
 
     # {'events': [{"event": "PUT", "path": "albums/Shared/0eb9fc9e-757b-4c6e-95d5-d7cda4b8e802.webcam-settings.png", "timestamp": 1745101204, "id": "142b9797-a2fe-48ed-8ec1-f875b5fb82d9"}]}
-    # "newPath"
-    # expected to be in order
-
+    # If "event" is "MOVE", the event also contains the key "newPath"
+    # Events are expected to be in order
     for event in payload['events']:
         try:
             match event["event"]:
@@ -82,7 +81,6 @@ def resync():
     offline_events_file = config()['paths']['offline_events_file'].as_str()
 
     prefixes = [f"albums/{prefix}" for prefix in allowed_prefixes]
-
 
     if not aws.ping(s3_ping_url):
         return jsonify({"status": "error", "message": "Offline"}), 500

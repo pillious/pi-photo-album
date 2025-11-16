@@ -95,6 +95,13 @@
     width: min(800px, 80vw);
 }
 
+.preview-dialog-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
 .loading {
     position: absolute;
     top: 50%;

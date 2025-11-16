@@ -101,8 +101,8 @@ const getImagePreview = async (path) => {
 
     const image = await resp.blob();
     const imageUrl = URL.createObjectURL(image);
-    
-    showPreviewImageDialog(imageUrl);
+
+    showPreviewImageDialog(imageUrl, path);
 };
 
 /**

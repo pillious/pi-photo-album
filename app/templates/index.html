@@ -12,8 +12,8 @@
             // These are coming from Flask.
             const savedSettings = {{ settings|tojson }};
             // {folderName: {...} | fileName: "", ...}
-            const fileSystemSnapshot = {{ fileStructure|tojson }}; 
-        </script> 
+            const fileSystemSnapshot = {{ fileStructure|tojson }};
+        </script>
         <script type="text/javascript" src="/static/scripts/index.js"></script>
         <script type="text/javascript" src="/static/scripts/settings.js"></script>
         <script type="text/javascript" src="/static/scripts/imageUploader.js"></script>
@@ -103,12 +103,12 @@
 
             <hr />
 
-            <h3>File System</h3> 
+            <h3>File System</h3>
             <!-- TODO (if needed in the future): manual resync -->
-            <!-- <button>Manual Resync</button> --> 
+            <!-- <button>Manual Resync</button> -->
             <button onClick="showCreateFolderDialog()">Create Album</button>
             <button onClick="toggleFileSelection()">Select</button>
-            <button class="file-system-tools" id="file-system-tools-rename" onClick="showRenameFileDialog()">Rename</button> 
+            <button class="file-system-tools" id="file-system-tools-rename" onClick="showRenameFileDialog()">Rename</button>
             <button class="file-system-tools" id="file-system-tools-copy" onClick="showCopyFilesDialog()">Copy</button>
             <button class="file-system-tools" id="file-system-tools-move" onClick="showMoveFilesDialog()">Move</button>
             <button class="file-system-tools" id="file-system-tools-delete" onClick="handleDeleteFiles()">Delete</button>
@@ -154,7 +154,7 @@
                 </div>
             </form>
         </dialog>
-        
+
         <dialog id="rename-file-dialog">
             <form onsubmit="handleRenameFile(event)">
                 <p>Rename:</p>
@@ -169,7 +169,11 @@
         <dialog id="preview-image-dialog">
             <div>
                 <img />
-                <button type="button" onclick="hidePreviewImageDialog()">Close</button>
+                <div class="preview-dialog-buttons">
+                    <button type="button" onclick="handleRotateImage()">Rotate</button>
+                    <button type="button" onclick="handleSaveImageRotation()">Save</button>
+                    <button type="button" onclick="hidePreviewImageDialog()">Close</button>
+                </div>
             </div>
         </dialog>
 

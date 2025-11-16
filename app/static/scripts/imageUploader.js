@@ -5,7 +5,7 @@ const handleFileUploadChange = (e) => {
     const files = e.target.files;
     for (const file of files) {
         let fileName = secureFilename(file.name);
-        // Using hash over uuid to prevent duplicate filenames in staging.
+        // Using hash of filename over a uuid to prevent duplicate filenames in staging.
         filesInStaging[String(cyrb53(fileName))] = {
             fileContent: file,
             album: '',

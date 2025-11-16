@@ -19,7 +19,7 @@ const hideCreateFolderDialog = () => {
     form.reset();
 };
 
-/** 
+/**
  * Shows the copy files dialog.
  * The dialog is populated with the available album paths.
  */
@@ -83,16 +83,90 @@ const hideRenameFileDialog = () => {
     form.reset();
 }
 
+// Store rotation state and image path for preview dialog
+let previewImageRotation = 0;
+let previewImagePath = '';
+
 /**
- * Shows the preview image dialog with the given image URL.
+ * Shows the preview image dialog with the given image URL and path.
  */
-const showPreviewImageDialog = (previewImageUrl) =>{
+const showPreviewImageDialog = (previewImageUrl, imagePath) => {
     const dialog = document.getElementById('preview-image-dialog');
     dialog.showModal();
     showOverlay();
 
     const img = dialog.querySelector('img');
     img.src = previewImageUrl;
+
+    // Store image path and reset rotation state
+    previewImagePath = imagePath;
+    previewImageRotation = 0;
+    img.style.transform = 'rotate(0deg)';
+
+    // Enable/disable rotate button based on file type
+    const rotateBtn = dialog.querySelector('button[onclick="handleRotateImage()"]');
+    const saveBtn = dialog.querySelector('button[onclick="handleSaveImageRotation()"]');
+    const isJpeg = isJpegFile(previewImagePath);
+    rotateBtn.disabled = !isJpeg;
+    saveBtn.disabled = !isJpeg;
+}
+
+/**
+ * Handles rotation button click - rotates image 90 degrees clockwise
+ */
+const handleRotateImage = () => {
+    const dialog = document.getElementById('preview-image-dialog');
+    const img = dialog.querySelector('img');
+
+    // Increment rotation by 90 degrees (0 → 90 → 180 → 270 → 0)
+    previewImageRotation = (previewImageRotation + 90) % 360;
+    img.style.transform = `rotate(${previewImageRotation}deg)`;
+}
+
+/**
+ * Handles save button click - sends rotation request to backend
+ */
+const handleSaveImageRotation = async () => {
+    // Validate file is JPG/JPEG
+    if (!isJpegFile(previewImagePath)) {
+        alert('Rotation is only supported for JPG/JPEG images.');
+        return;
+    }
+
+    if (previewImageRotation === 0) {
+        // No rotation to save, just close
+        hidePreviewImageDialog();
+        return;
+    }
+
+    try {
+        const resp = await fetch('/rotate-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                path: previewImagePath,
+                rotation: previewImageRotation
+            }),
+        });
+
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            // Update file system snapshot with the new path (treat as a MOVE)
+            const oldPath = removeAlbumsPrefix(previewImagePath);
+            const newPath = removeAlbumsPrefix(data.newPath);
+            updateFileSystem(fileSystemSnapshot, oldPath, newPath);
+            updateFileSystemUI();
+
+            hidePreviewImageDialog();
+        } else {
+            alert(`Failed to save rotation: ${data.message || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error saving rotation:', error);
+        alert('Failed to save rotation. Please try again.');
+    }
 }
 
 /**
@@ -105,6 +179,11 @@ const hidePreviewImageDialog = () => {
 
     const img = dialog.querySelector('img');
     img.src = '';
+
+    // Reset rotation state and transform
+    previewImageRotation = 0;
+    previewImagePath = '';
+    img.style.transform = 'rotate(0deg)';
 }
 
 const populateAlbumPaths = (dialogId) => {

@@ -257,3 +257,63 @@ def preview(request: Request):
 
     base_dir = config()['paths']['base_dir'].as_str()
     return send_from_directory(base_dir, image_path)
+
+def rotate_image(request: Request):
+    req_json: dict | None = request.json
+    if not req_json:
+        return jsonify({"status": "error", "message": "No JSON data provided"}), 400
+
+    image_path = req_json.get('path')
+    rotation = req_json.get('rotation')
+    if not image_path:
+        return jsonify({"status": "error", "message": "No image path provided"}), 400
+    if rotation is None:
+        return jsonify({"status": "error", "message": "No rotation provided"}), 400
+    image_path = utils.secure_path(image_path)
+
+    file_extension = utils.get_file_extension(image_path)
+    if file_extension not in {'jpg', 'jpeg'}:
+        return jsonify({"status": "error", "message": "Rotation is only supported for JPG/JPEG images"}), 400
+    if rotation % 90 != 0:
+        return jsonify({"status": "error", "message": "Invalid rotation. Must be 90, 180, or 270"}), 400
+
+    abs_path = filesystem.key_to_abs_path(image_path)
+    if not os.path.exists(abs_path):
+        return jsonify({"status": "error", "message": "Image not found"}), 404
+
+    album_path = os.path.dirname(image_path)
+    filename = os.path.basename(image_path)
+
+    # Treating the rotate as a MOVE, we can do this by only regerating the UUID portion of the filename.
+    new_filename = utils.regenerate_uuid_of_filename(filename)
+    new_image_path = f'{album_path}/{new_filename}'
+    new_abs_path = filesystem.key_to_abs_path(new_image_path)
+
+    shutil.copy(abs_path, new_abs_path)
+    exit_code = utils.rotate_jpg_by_degree(new_abs_path, rotation)
+
+    if exit_code != 0:
+        filesystem.silentremove(new_abs_path)
+        return jsonify({"status": "error", "message": "Failed to rotate image"}), 500
+
+    s3_ping_url = config()['url']['s3_ping_url'].as_str()
+    offline_events_file = config()['paths']['offline_events_file'].as_str()
+
+    if not aws.ping(s3_ping_url):
+        offline_events = [offline.create_offline_event('MOVE', abs_path, new_abs_path)]
+        offline.save_offline_events(offline_events_file, offline_events)
+    else:
+        success, failure = cloud_client().move_bulk([(image_path, new_image_path)])
+        print(f"[DEBUG] Success: {success}, Failure: {failure}")
+        if failure:
+            print(f"Failed to upload rotated image to cloud: {failure}")
+            filesystem.silentremove(new_abs_path)
+            return jsonify({"status": "error", "message": "Failed to upload rotated image to cloud"}), 500
+        message = json.dumps({
+            "events": [{"event": "MOVE", "path": image_path, "newPath": new_image_path}],
+            "sender": os.getenv('USERNAME')
+        })
+        cloud_client().insert_queue(message)
+
+    filesystem.silentremove(abs_path)
+    return jsonify({"status": "ok", "newPath": new_image_path})

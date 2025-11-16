@@ -83,6 +83,11 @@ def resync():
 def preview():
     return filesystem_routes.preview(request)
 
+@app.route('/rotate-image', methods=['POST'])
+@enforce_mime('application/json')
+def rotate_image():
+    return filesystem_routes.rotate_image(request)
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})

@@ -171,3 +171,8 @@ const removeAlbumsPrefixes = (paths) => paths.map((path) => removeAlbumsPrefix(p
 //     }
 //     return loc;
 // }
+
+const isJpegFile = (filename) => {
+    const ext = getFileExtension(filename);
+    return ext === 'jpg' || ext === 'jpeg';
+}

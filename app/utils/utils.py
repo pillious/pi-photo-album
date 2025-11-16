@@ -1,5 +1,6 @@
 import subprocess
 import os
+import uuid
 from dotenv import load_dotenv
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -10,6 +11,22 @@ def clamp(val, min, max):
 
 def get_file_extension(filename: str):
     return filename.rsplit('.', 1)[1].lower()
+
+def regenerate_uuid_of_filename(filename: str) -> str:
+    """
+    Regenerate the UUID of a filename, preserving the user-facing part.
+
+    Format: <uuid>.<user-facing-name>.<ext>
+
+    Args:
+        filename (str): The original filename with UUID prefix
+
+    Returns:
+        str: New filename with a new UUID but same user-facing part
+    """
+    first_dot_index = filename.index('.')
+    user_facing_name = filename[first_dot_index + 1:]
+    return f'{uuid.uuid4()}.{user_facing_name}'
 
 def handle_duplicate_file(folder: str, name: str):
     """
@@ -70,6 +87,29 @@ def rotate_jpgs(jpg_paths: list[str]):
         procs.append(proc)
     exit_codes = [proc.wait() for proc in procs]
     return exit_codes
+
+def rotate_jpg_by_degree(jpg_path: str, degree: int):
+    """
+    Rotate a JPG file by a 90,180, or 270 degree clockwise.
+    """
+    if degree % 90 != 0:
+        raise ValueError("Degree must be a multiple of 90 degrees.")
+
+    rotation_flag = "" # exiftran flag for rotation
+    match degree % 360:
+        case 0:
+            return 0
+        case 90:
+            rotation_flag = "-9"
+        case 180:
+            rotation_flag = "-1"
+        case 270:
+            rotation_flag = "-2"
+
+    os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
+    proc = subprocess.Popen(["exiftran", "-i", rotation_flag, jpg_path])
+    exit_code = proc.wait()
+    return exit_code
 
 def save_image_to_disk(album_path: str, image_name: str, image: FileStorage, handle_duplicates: bool) -> str:
     loc = f"{album_path}/{image_name}"
