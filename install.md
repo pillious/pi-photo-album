@@ -12,6 +12,7 @@ This guide assumes you are setting up the Raspberry Pi from a separate computer 
   - [4. Configure Auto-Start on Boot](#4-configure-auto-start-on-boot)
   - [5. Setup Environment Variable File](#5-setup-environment-variable-file)
   - [6. Start the Application](#6-start-the-application)
+- [Updating To a New Version](#updating-to-a-new-version)
 
 ## Prerequisites
 
@@ -21,15 +22,20 @@ This guide assumes you are setting up the Raspberry Pi from a separate computer 
 
 ## Installation Steps
 
+> [!IMPORTANT]
+> Please follow the [Updating To a New Version](#updating-to-a-new-version) section if you are updating to a newer version of the app.
+
 ### 1. Download the app
-   https://github.com/pillious/pi-photo-album/releases/
+   Find the latest release version here: https://github.com/pillious/pi-photo-album/releases/latest
+
+   For a first time installation:
    ```bash
    VERSION=<version> && \
    wget https://github.com/pillious/pi-photo-album/releases/download/v$VERSION/pi_photo_album-$VERSION.tar.gz && \
-   sudo rm -rf /usr/local/bin/pi-photo-album && \
    sudo tar -xzf pi_photo_album-$VERSION.tar.gz -C /usr/local/bin && \
    sudo mv /usr/local/bin/pi_photo_album-$VERSION /usr/local/bin/pi-photo-album
    ```
+
 ### 2. Run the installation script
    ```bash
    /usr/local/bin/pi-photo-album/install.sh
@@ -38,7 +44,6 @@ This guide assumes you are setting up the Raspberry Pi from a separate computer 
    ```
    sudo reboot
    ```
-   - Rebooting is only required after the first time running the installation script.
 
 ### 3. Enable Raspberry Pi Auto-login
 
@@ -114,4 +119,25 @@ This guide assumes you are setting up the Raspberry Pi from a separate computer 
    ```
    ```bash
    journalctl -u pi-photo-album.service
+   ```
+
+## Updating To a New Version
+
+1. Downloading the new version:
+   ```bash
+   VERSION=<version> && \
+   wget https://github.com/pillious/pi-photo-album/releases/download/v$VERSION/pi_photo_album-$VERSION.tar.gz && \
+   sudo rm -rf /usr/local/bin/pi-photo-album && \
+   sudo tar -xzf pi_photo_album-$VERSION.tar.gz -C /usr/local/bin && \
+   sudo mv /usr/local/bin/pi_photo_album-$VERSION /usr/local/bin/pi-photo-album
+   ```
+
+2. Running the installation script:
+   ```bash
+   /usr/local/bin/pi-photo-album/install.sh
+   ```
+
+3. Restarting the service:
+   ```bash
+   sudo systemctl restart pi-photo-album
    ```
