@@ -20,6 +20,10 @@ const overrideFileSystem = (fileSystem) => {
  */
 const updateFileSystemUI = () => {
     const fsTreeRoot = document.querySelector('[data-fs-tree-]');
+    activeFolders = new Set(Array.from(fsTreeRoot.querySelectorAll('ul[data-album-path]')).filter(
+        el => el.style.display !== 'none'
+    ).map(el => el.getAttribute('data-album-path')));
+
     fsTreeRoot.innerHTML = '';
 
     const stack = [];
@@ -56,12 +60,12 @@ const updateFileSystemUI = () => {
                 const folderUl = document.createElement('ul');
                 folderUl.setAttribute(`data-fs-tree-${key}`, '');
                 folderUl.setAttribute('data-album-path', currPath);
-                folderUl.style.display = 'none'; // Defaults to hiding files
+                folderUl.style.display = activeFolders.has(currPath) ? 'block' : 'none';
                 parent.appendChild(folderUl);
 
                 // Button to hide files in folder
                 const hideBtn = document.createElement('button');
-                hideBtn.innerHTML = 'Show';
+                hideBtn.innerHTML = folderUl.style.display === 'none' ? 'Show' : 'Hide';
                 hideBtn.classList.add('hide-album-btn');
                 hideBtn.onclick = () => {
                     folderUl.style.display = folderUl.style.display === 'none' ? 'block' : 'none';
