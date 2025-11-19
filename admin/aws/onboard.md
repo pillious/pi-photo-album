@@ -52,7 +52,7 @@ Admin related setup should be done from a seperate machine, not the raspberry pi
     > Simplest way is to use `jq` (`sudo apt install jq`) to parse the `admin/aws/terraform.tfstate` file .
 
     > [!Tip]
-    > In the following steps, replace `<username>` username you added in step 1.
+    > In the following steps, replace `<username>` with the username you added in step 1.
 
     - `AWS_ACCESS_KEY_ID`:
         ```bash
