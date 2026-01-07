@@ -6,7 +6,6 @@ speed="$2"
 blend="$3"
 image_order_file="$4"
 
-slideshow_pid=
 notifier_pid=
 debounce_pid=
 
@@ -19,18 +18,12 @@ start_slideshow() {
     fi
 
     echo "Starting slideshow"
-    fbi -d /dev/fb0 -T 1 -noverbose -readahead -a -t "$speed" -blend "$blend" -l "$image_order_file" &
-    slideshow_pid=$!
+    fbi -d /dev/fb0 -T 1 -noverbose -readahead -a -t "$speed" -blend "$blend" -l "$image_order_file"
 }
 
 kill_slideshow() {
-    echo "Killing slideshow with PID: $slideshow_pid"
-    if [[ -n "$slideshow_pid" ]] && kill -0 "$slideshow_pid" 2>/dev/null; then
-        kill -15 "$slideshow_pid"
-        wait "$slideshow_pid" 2>/dev/null || true
-    else
-        echo "Failed to kill slideshow with PID: $slideshow_pid - Process not found or already terminated"
-    fi
+    echo "Killing slideshow"
+    pkill -15 fbi || true
 }
 
 kill_notifier() {
