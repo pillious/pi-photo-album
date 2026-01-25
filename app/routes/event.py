@@ -3,7 +3,7 @@ import os
 import json
 import queue
 
-from app.utils import filesystem, offline, aws
+from app.utils import filesystem, pending, aws
 from app.announcer import event_announcer
 from app.cloud_clients.cloud_client import cloud_client
 from app.config.config import config
@@ -78,7 +78,7 @@ def resync():
     allowed_prefixes = config()['files']['allowed_prefixes'].as_set().as_strs()
     s3_ping_url = config()['url']['s3_ping_url'].as_str()
     base_dir = config()['paths']['base_dir'].as_str()
-    offline_events_file = config()['paths']['offline_events_file'].as_str()
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     prefixes = [f"albums/{prefix}" for prefix in allowed_prefixes]
 
@@ -95,22 +95,22 @@ def resync():
     files_not_in_cloud = local_files.difference(cloud_files)
     files_not_in_local = cloud_files.difference(local_files)
 
-    offline_events = offline.get_offline_events(offline_events_file)
-    for evt in offline_events:
+    pending_events = pending.get_pending_events(pending_events_file)
+    for evt in pending_events:
         evt["path"] = filesystem.strip_base_dir(evt["path"])
         if evt["event"] == "MOVE":
             evt["newPath"] = filesystem.strip_base_dir(evt["newPath"])
-    print("Offline events:")
-    print(offline_events)
+    print("Pending events:")
+    print(pending_events)
 
     events_to_send = []
-    for evt in offline_events:
+    for evt in pending_events:
         match evt["event"]:
             case "PUT":
                 files_not_in_cloud.discard(evt["path"]) # Avoids deleting the file later.
                 events_to_send.append({"event": "PUT", "path": evt["path"]})
             case "MOVE":
-                # TODO: test multiple moves of the same file while offline.
+                # TODO: test multiple moves of the same file while pending.
                 files_not_in_local.discard(evt["path"]) # Avoids downloading the file later.
                 files_not_in_cloud.discard(evt["newPath"]) # Avoids deleting the file later.
                 events_to_send.append({"event": "MOVE", "path": evt["path"], "newPath": evt["newPath"]})
@@ -139,8 +139,8 @@ def resync():
         }
     ))
 
-    print("Clearing offline events")
-    offline.clear_offline_events(offline_events_file)
+    print("Clearing pending events")
+    pending.clear_pending_events(pending_events_file)
 
     return jsonify({"status": "ok"})
 

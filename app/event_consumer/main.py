@@ -6,7 +6,7 @@ import botocore
 import os
 
 from app.config.config import config, load_config
-from app.utils import utils, aws, offline
+from app.utils import utils, aws, pending
 from app.event_consumer.consumer import SQSQueueConsumer
 
 utils.load_env([".env", os.path.abspath(os.path.expandvars('$HOME/.config/pi-photo-album/.env'))])
@@ -23,12 +23,12 @@ def main():
             time.sleep(2 ** min(failed_health_checks, 5)) # exponential backoff
             continue
 
-        if not offline.is_within_retention_period():
+        if not pending.is_within_retention_period():
             print("Retention period expired. Sending resync request...")
             if not send_resync_request():
                 print("Error sending resync request.")
                 continue
-            offline.write_poll_time()
+            pending.write_poll_time()
             time.sleep(30) # Wait for the resync to complete
             continue
 
@@ -39,7 +39,7 @@ def main():
                 failed_health_checks += 1
                 time.sleep(2 ** min(failed_health_checks, 5))
                 continue
-        
+
             response = sqs_consumer.receive_messages()
             if response:
                 events = []
@@ -63,7 +63,7 @@ def main():
                         time.sleep(10) # Wait for the full length of sqs VISIBILITY_TIMEOUT
                         continue
                     sqs_consumer.delete_messages(id_to_receipt_handles)
-            offline.write_poll_time()
+            pending.write_poll_time()
         except botocore.exceptions.ConnectionError as e:
             print("Connection error.")
             handle_consumer_offline()
@@ -120,10 +120,10 @@ def send_resync_request():
     return True
 
 def handle_consumer_offline():
-    if offline.get_last_poll() != offline.get_snapshot_time():
+    if pending.get_last_poll() != pending.get_snapshot_time():
         print("Went offline. Saving file system snapshot.")
         fs_snapshot_file = config()['paths']['fs_snapshot_file'].as_str()
-        offline.save_simple_fs_snapshot(fs_snapshot_file)
+        pending.save_simple_fs_snapshot(fs_snapshot_file)
 
 if __name__ == "__main__":
     os.makedirs(config()['paths']['config_dir'].as_str(), exist_ok=True)

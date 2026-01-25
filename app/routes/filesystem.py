@@ -7,8 +7,9 @@ from urllib.parse import unquote, urlparse
 from werkzeug.utils import secure_filename
 
 from app.config.config import config
-from app.utils import utils, offline, filesystem, aws
+from app.utils import utils, pending, filesystem, aws
 from app.cloud_clients.cloud_client import cloud_client
+from app.event_publisher.publisher import event_publisher
 
 
 class SavedFile:
@@ -112,21 +113,12 @@ def upload_images(request: Request):
     if len(jpg_paths) > 0:
         utils.rotate_jpgs(jpg_paths)
 
-    if not aws.ping(config()['url']['s3_ping_url'].as_str()):
-        offline_events = [offline.create_offline_event('PUT', sf.get_file_path()) for sf in saved_files]
-        offline_events_file = config()['paths']['offline_events_file'].as_str()
-        offline.save_offline_events(offline_events_file, offline_events)
-    elif len(saved_files) > 0:
-        # Bulk upload to cloud
-        success, failure = cloud_client().insert_bulk(
-            [sf.get_file_path() for sf in saved_files],
-            [sf.get_stripped_path() for sf in saved_files]
-        )
-        failed_files = failed_files + [sf.get_guid() for sf in saved_files if sf.get_stripped_path() in failure]
-
-        # Push events to queue
-        message = json.dumps({"events": [{"event": "PUT", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
-        cloud_client().insert_queue(message)
+    # Queue uploads for background sync (always, regardless of online status)
+    if len(saved_files) > 0:
+        pending_events = [pending.create_pending_event('PUT', sf.get_stripped_path()) for sf in saved_files]
+        pending_events_file = config()['paths']['pending_events_file'].as_str()
+        pending.save_pending_events(pending_events_file, pending_events)
+        event_publisher().trigger()  # Attempt immediate sync
 
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
@@ -145,7 +137,7 @@ def delete_images(request: Request):
 
     base_dir = config()['paths']['base_dir'].as_str()
     s3_ping_url = config()['url']['s3_ping_url'].as_str()
-    offline_events_file = config()['paths']['offline_events_file'].as_str()
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     for f in files:
         f = utils.secure_path(f)
@@ -153,8 +145,8 @@ def delete_images(request: Request):
         filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
 
     if not aws.ping(s3_ping_url):
-        offline_events = [offline.create_offline_event('DELETE', sf) for sf in files]
-        offline.save_offline_events(offline_events_file, offline_events)
+        pending_events = [pending.create_pending_event('DELETE', sf) for sf in files]
+        pending.save_pending_events(pending_events_file, pending_events)
     elif len(files) > 0:
         print(files)
         success, failed = cloud_client().delete_bulk(files)
@@ -174,7 +166,7 @@ def move_images(request: Request):
 
     base_dir = config()['paths']['base_dir'].as_str()
     s3_ping_url = config()['url']['s3_ping_url'].as_str()
-    offline_events_file = config()['paths']['offline_events_file'].as_str()
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     files_to_move = []
     for file in files:
@@ -193,8 +185,8 @@ def move_images(request: Request):
         files_to_move.append(file)
 
     if not aws.ping(s3_ping_url):
-        offline_events = [offline.create_offline_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
-        offline.save_offline_events(offline_events_file, offline_events)
+        pending_events = [pending.create_pending_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
+        pending.save_pending_events(pending_events_file, pending_events)
     elif len(files_to_move) > 0:
         image_key_pairs = [(f['oldPath'], f['newPath']) for f in files_to_move]
         success, failed = cloud_client().move_bulk(image_key_pairs)
@@ -213,7 +205,7 @@ def copy_images(request: Request):
         return jsonify({"status": "ok", "failed": []})
 
     s3_ping_url = config()['url']['s3_ping_url'].as_str()
-    offline_events_file = config()['paths']['offline_events_file'].as_str()
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     files_to_copy = []
     for file in files:
@@ -231,8 +223,8 @@ def copy_images(request: Request):
         files_to_copy.append(file)
 
     if not aws.ping(s3_ping_url):
-        offline_events = [offline.create_offline_event('PUT', sf['newPath']) for sf in files_to_copy]
-        offline.save_offline_events(offline_events_file, offline_events)
+        pending_events = [pending.create_pending_event('PUT', sf['newPath']) for sf in files_to_copy]
+        pending.save_pending_events(pending_events_file, pending_events)
     elif len(files_to_copy) > 0:
         image_keys = [f['newPath'] for f in files_to_copy]
         success, failure = cloud_client().insert_bulk([filesystem.key_to_abs_path(k) for k in image_keys], image_keys)
@@ -297,11 +289,11 @@ def rotate_image(request: Request):
         return jsonify({"status": "error", "message": "Failed to rotate image"}), 500
 
     s3_ping_url = config()['url']['s3_ping_url'].as_str()
-    offline_events_file = config()['paths']['offline_events_file'].as_str()
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     if not aws.ping(s3_ping_url):
-        offline_events = [offline.create_offline_event('MOVE', abs_path, new_abs_path)]
-        offline.save_offline_events(offline_events_file, offline_events)
+        pending_events = [pending.create_pending_event('MOVE', image_path, new_image_path)]
+        pending.save_pending_events(pending_events_file, pending_events)
     else:
         success, failure = cloud_client().move_bulk([(image_path, new_image_path)])
         print(f"[DEBUG] Success: {success}, Failure: {failure}")

@@ -8,16 +8,16 @@ import json
 
 
 from app.config import config
-from app.utils import offline
+from app.utils import pending
 
-class TestOffline:
+class TestPending:
     def test_write_poll_time(self, tmp_path: Path):
         c = {"paths": {"last_poll_file": tmp_path / "last_poll.txt"}}
         config.load_config(c)
         # 1. Test when file doesn't exist.
         # 2. Test overriding file.
         for _ in range(2):
-            offline.write_poll_time()
+            pending.write_poll_time()
             with open(config.config()['paths']['last_poll_file'].as_str(), 'r') as f:
                 timestamp = f.readline().strip()
             poll_time = datetime.fromisoformat(timestamp)
@@ -28,14 +28,14 @@ class TestOffline:
         c = {"paths": {"last_poll_file": tmp_path / "last_poll.txt"}}
         config.load_config(c)
         assert not os.path.exists(config.config()['paths']['last_poll_file'].as_str())
-        assert offline.get_last_poll() == datetime.fromtimestamp(0, timezone.utc)
+        assert pending.get_last_poll() == datetime.fromtimestamp(0, timezone.utc)
 
     def test_get_last_poll_file_exists(self, tmp_path: Path):
         c = {"paths": {"last_poll_file": tmp_path / "last_poll.txt"}}
         config.load_config(c)
-        offline.write_poll_time()
+        pending.write_poll_time()
         assert os.path.exists(config.config()['paths']['last_poll_file'].as_str())
-        poll_time = offline.get_last_poll()
+        poll_time = pending.get_last_poll()
         assert self.approx_curr_time(poll_time)
 
     def test_is_within_retention_period(self, tmp_path: Path):
@@ -47,7 +47,7 @@ class TestOffline:
         last_poll_time = str(datetime.now(timezone.utc))
         with open(config.config()['paths']['last_poll_file'].as_str(), 'w') as f:
             f.write(last_poll_time + "\n")
-        assert offline.is_within_retention_period()
+        assert pending.is_within_retention_period()
 
     def test_is_not_within_retention_period(self, tmp_path: Path):
         c = {
@@ -58,7 +58,7 @@ class TestOffline:
         last_poll_time = str(datetime.now(timezone.utc) - timedelta(days=4))
         with open(config.config()['paths']['last_poll_file'].as_str(), 'w') as f:
             f.write(last_poll_time + "\n")
-        assert not offline.is_within_retention_period()
+        assert not pending.is_within_retention_period()
 
     def test_save_simple_fs_snapshot(self, tmp_path: Path):
         c = {
@@ -80,8 +80,8 @@ class TestOffline:
         os.makedirs(f"{base_dir}/albums/Shared/a", exist_ok=True)
         for img in imgs_in_snapshot.union(imgs_not_in_snapshot):
             shutil.copy(test_img, f"{base_dir}/albums/{img}")
-        offline.write_poll_time()
-        offline.save_simple_fs_snapshot(snapshot_file)
+        pending.write_poll_time()
+        pending.save_simple_fs_snapshot(snapshot_file)
 
         with open(snapshot_file, 'r') as f:
             lines = f.readlines()
@@ -99,53 +99,53 @@ class TestOffline:
             assert f not in imgs_not_in_snapshot
 
 
-    def test_create_offline_event(self):
+    def test_create_pending_event(self):
         test_cases = [
             ("CREATE", "/path/to/file.jpg", "", "CREATE,/path/to/file.jpg"),
             ("DELETE", "/path/to/file.jpg", "", "DELETE,/path/to/file.jpg"),
             ("MOVE", "/path/from/file.jpg", "/new/path/to/file.jpg", "MOVE,/path/from/file.jpg,/new/path/to/file.jpg"),
         ]
         for t in test_cases:
-            evt = offline.create_offline_event(*t[:3])
+            evt = pending.create_pending_event(*t[:3])
             timestamp, rest = evt.split(',', 1)
             assert rest == t[3]
             assert self.approx_curr_time(datetime.fromisoformat(timestamp))
 
-    def test_save_offline_events(self, tmp_path: Path):
+    def test_save_pending_events(self, tmp_path: Path):
         events = [
-            offline.create_offline_event("CREATE", "/path/to/file1.jpg"),
-            offline.create_offline_event("DELETE", "/path/to/file2.jpg"),
-            offline.create_offline_event("MOVE", "/path/from/file3.jpg", "/new/path/to/file3.jpg"),
+            pending.create_pending_event("CREATE", "/path/to/file1.jpg"),
+            pending.create_pending_event("DELETE", "/path/to/file2.jpg"),
+            pending.create_pending_event("MOVE", "/path/from/file3.jpg", "/new/path/to/file3.jpg"),
         ]
-        offline.save_offline_events(str(tmp_path / "offline_events.json"), events)
-        with open(tmp_path / "offline_events.json", "r") as f:
+        pending.save_pending_events(str(tmp_path / "pending_events.json"), events)
+        with open(tmp_path / "pending_events.json", "r") as f:
             lines = f.readlines()
         assert len(lines) == len(events)
         for line, event in zip(lines, events):
             assert line.strip() == event
 
-    def test_get_offline_events(self, tmp_path: Path):
+    def test_get_pending_events(self, tmp_path: Path):
         events = [
             {"timestamp": datetime.now(timezone.utc), "event": "CREATE", "path": "/path/to/file1.jpg"},
             {"timestamp": datetime.now(timezone.utc), "event": "CREATE", "path": "/path/to/file1.jpg"},
             {"timestamp": datetime.now(timezone.utc), "event": "DELETE", "path": "/path/to/file2.jpg"},
             {"timestamp": datetime.now(timezone.utc), "event": "MOVE", "path": "/path/from/file3.jpg", "new_path": "/new/path/to/file3.jpg"},
         ]
-        evt_strs = [offline.create_offline_event(evt["event"], evt["path"], evt.get("new_path", "")) for evt in events]
-        events_file = str(tmp_path / "offline_events.json")
-        offline.save_offline_events(events_file, evt_strs)
-        parsed_events = offline.get_offline_events(events_file)
+        evt_strs = [pending.create_pending_event(evt["event"], evt["path"], evt.get("new_path", "")) for evt in events]
+        events_file = str(tmp_path / "pending_events.json")
+        pending.save_pending_events(events_file, evt_strs)
+        parsed_events = pending.get_pending_events(events_file)
         for e, pe in zip(events, parsed_events):
             assert e["event"] == pe["event"]
             assert e["path"] == pe["path"]
             assert e.get("new_path", "") == pe.get("newPath", "")
             assert self.times_approx_equal(datetime.fromisoformat(pe["timestamp"]), e["timestamp"])
 
-    def test_clear_offline_events(self, tmp_path: Path):
-        events_file = tmp_path / "offline_events.json"
+    def test_clear_pending_events(self, tmp_path: Path):
+        events_file = tmp_path / "pending_events.json"
         events_file.write_text("TEST")
-        offline.clear_offline_events(str(events_file))
-        evts = offline.get_offline_events(str(events_file))
+        pending.clear_pending_events(str(events_file))
+        evts = pending.get_pending_events(str(events_file))
         assert evts == []
 
     def test_get_snapshot_time_file_not_found(self):
@@ -153,7 +153,7 @@ class TestOffline:
             "paths": {"fs_snapshot_file": "non_existent_file.txt"}
         }
         config.load_config(c)
-        assert offline.get_snapshot_time() is None
+        assert pending.get_snapshot_time() is None
 
     def test_get_snapshot_time(self, tmp_path: Path):
         c = {
@@ -175,10 +175,10 @@ class TestOffline:
 
         for img in imgs:
             shutil.copy(test_img, f"{base_dir}/albums/{img}")
-        offline.write_poll_time()
-        offline.save_simple_fs_snapshot(snapshot_file)
+        pending.write_poll_time()
+        pending.save_simple_fs_snapshot(snapshot_file)
 
-        timestamp = offline.get_snapshot_time()
+        timestamp = pending.get_snapshot_time()
         assert timestamp is not None
         assert self.approx_curr_time(timestamp)
 

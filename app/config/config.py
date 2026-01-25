@@ -131,7 +131,7 @@ def default_config():
             "env_file": f"{config_dir}/.env",
             "last_poll_file": f"{config_dir}/last_poll.txt",
             "fs_snapshot_file": f"{config_dir}/fs_snapshot.json",
-            "offline_events_file": f"{config_dir}/events.csv",
+            "pending_events_file": f"{config_dir}/events.csv",
             "active_slideshow_file": f"{config_dir}/active_slideshow.txt",
             "base_dir": base_dir,
             "tmp_storage_dir": f"{base_dir}/tmp"

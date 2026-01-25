@@ -1,5 +1,5 @@
 """
-Utilities for handling when the app goes offline.
+Utilities for handling pending events.
 """
 
 import os
@@ -8,7 +8,7 @@ import csv
 from datetime import datetime, timezone, timedelta
 
 from app.config.config import config
-from app.utils import offline, filesystem
+from app.utils import filesystem
 
 def write_poll_time():
     """
@@ -49,7 +49,7 @@ def is_within_retention_period():
 def save_simple_fs_snapshot(out_file: str):
     """
     Creates a snapshot of the filesystem as a list of file paths.
-    
+
     Format:
     ```
     <snapshot_timestamp>
@@ -62,13 +62,13 @@ def save_simple_fs_snapshot(out_file: str):
     file_paths = filesystem.list_files_in_dir(base_dir, prefixes)
 
     with open(out_file, 'w') as f:
-        f.write(str(offline.get_last_poll()))
+        f.write(str(get_last_poll()))
         f.write("\n")
         f.write(json.dumps(file_paths))
 
-def create_offline_event(event: str, path: str, new_path = ''):
+def create_pending_event(event: str, path: str, new_path = ''):
     """
-    Create an offline event in the format:
+    Create a pending event in the format:
     ```
     <timestamp>,<event>,<path>[,<new_path>]
     ```
@@ -78,12 +78,12 @@ def create_offline_event(event: str, path: str, new_path = ''):
         return f"{timestamp},{event},{path},{new_path}"
     return f"{timestamp},{event},{path}"
 
-def save_offline_events(events_file: str, events: list[str]):
+def save_pending_events(events_file: str, events: list[str]):
     with open(events_file, 'a') as f:
         for event in events:
             f.write(event + "\n")
 
-def get_offline_events(events_file: str):
+def get_pending_events(events_file: str):
     events: list[dict[str, str]] = []
     if not os.path.exists(events_file):
         return events
@@ -99,7 +99,7 @@ def get_offline_events(events_file: str):
             events.append(event)
     return events
 
-def clear_offline_events(events_file: str):
+def clear_pending_events(events_file: str):
     if os.path.exists(events_file):
         with open(events_file, 'w') as file:
             pass
