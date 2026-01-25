@@ -58,7 +58,7 @@ class HeifFile:
 def upload_images(request: Request):
     saved_files: list[SavedFile] = []
     heif_files: list[HeifFile] = []
-    failed_files: list[str] = [] # List[guid]
+    failed_file_guids: list[str] = [] # List[guid]
     file_ids: dict[str, str] = {} # Dict[filename: guid]
 
     req_metadata = request.form.get("metadata")
@@ -86,7 +86,7 @@ def upload_images(request: Request):
             image_name = f'{uuid.uuid4()}.{secure_filename(image.filename)}'
             file_extension = utils.get_file_extension(image_name)
             if file_extension not in allowed_file_extensions or not filesystem.is_file_owner(album_path):
-                failed_files.append(guid)
+                failed_file_guids.append(guid)
                 continue
 
             if file_extension in {'heif', 'heic'}:
@@ -105,7 +105,7 @@ def upload_images(request: Request):
             if code == 0:
                 saved_files.append(SavedFile(heif_files[i].get_guid(), jpg_paths[i]))
             else:
-                failed_files.append(heif_files[i].get_guid())
+                failed_file_guids.append(heif_files[i].get_guid())
 
     # Parallelize the rotation of JPG files.
     jpg_paths = [sf.get_file_path() for sf in saved_files if sf.is_jpg()]
@@ -121,10 +121,9 @@ def upload_images(request: Request):
 
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
-    # return jsonify({"status": "ok", "failed": failed_files, "success": success})
-    if failed_files:
-        print(f'failed to upload: {failed_files}')
-    return jsonify({"status": "ok", "failed": [], "success": [sf.get_stripped_path() for sf in saved_files]})
+    if failed_file_guids:
+        print(f'failed to upload: {failed_file_guids}')
+    return jsonify({"status": "ok", "failed": failed_file_guids, "success": [sf.get_stripped_path() for sf in saved_files]})
 
 def delete_images(request: Request):
     req_json: dict | None = request.json
