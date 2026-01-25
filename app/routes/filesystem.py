@@ -7,8 +7,7 @@ from urllib.parse import unquote, urlparse
 from werkzeug.utils import secure_filename
 
 from app.config.config import config
-from app.utils import utils, pending, filesystem, aws
-from app.cloud_clients.cloud_client import cloud_client
+from app.utils import utils, pending, filesystem
 from app.event_publisher.publisher import event_publisher
 
 
@@ -113,12 +112,12 @@ def upload_images(request: Request):
     if len(jpg_paths) > 0:
         utils.rotate_jpgs(jpg_paths)
 
-    # Queue uploads for background sync (always, regardless of online status)
+    # Queue uploads for background sync
     if len(saved_files) > 0:
         pending_events = [pending.create_pending_event('PUT', sf.get_stripped_path()) for sf in saved_files]
         pending_events_file = config()['paths']['pending_events_file'].as_str()
         pending.save_pending_events(pending_events_file, pending_events)
-        event_publisher().trigger()  # Attempt immediate sync
+        event_publisher().trigger()
 
     # failed: the guids of the files that failed to upload.
     # success: the paths of the files that were successfully uploaded.
@@ -136,7 +135,6 @@ def delete_images(request: Request):
         return jsonify({"status": "ok", "failed": []})
 
     base_dir = config()['paths']['base_dir'].as_str()
-    s3_ping_url = config()['url']['s3_ping_url'].as_str()
     pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     for f in files:
@@ -144,15 +142,11 @@ def delete_images(request: Request):
         filesystem.silentremove(filesystem.key_to_abs_path(f))
         filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(f)))
 
-    if not aws.ping(s3_ping_url):
+    # Queue deletes for background sync
+    if len(files) > 0:
         pending_events = [pending.create_pending_event('DELETE', sf) for sf in files]
         pending.save_pending_events(pending_events_file, pending_events)
-    elif len(files) > 0:
-        print(files)
-        success, failed = cloud_client().delete_bulk(files)
-        print(success, failed)
-        message = json.dumps({"events": [{"event": "DELETE", "path": sf} for sf in success], "sender": os.getenv('USERNAME')})
-        cloud_client().insert_queue(message)
+        event_publisher().trigger()
 
     return jsonify({"status": "ok", "failed": []})
 
@@ -165,7 +159,6 @@ def move_images(request: Request):
         return jsonify({"status": "ok", "failed": []})
 
     base_dir = config()['paths']['base_dir'].as_str()
-    s3_ping_url = config()['url']['s3_ping_url'].as_str()
     pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     files_to_move = []
@@ -184,14 +177,11 @@ def move_images(request: Request):
         filesystem.remove_dirs(f'{base_dir}/albums', filesystem.remove_albums_prefix(os.path.dirname(file['oldPath'])))
         files_to_move.append(file)
 
-    if not aws.ping(s3_ping_url):
+    # Queue moves for background sync
+    if len(files_to_move) > 0:
         pending_events = [pending.create_pending_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
         pending.save_pending_events(pending_events_file, pending_events)
-    elif len(files_to_move) > 0:
-        image_key_pairs = [(f['oldPath'], f['newPath']) for f in files_to_move]
-        success, failed = cloud_client().move_bulk(image_key_pairs)
-        message = json.dumps({"events": [{"event": "MOVE", "path": sf[0], "newPath": sf[1]} for sf in success], "sender": os.getenv('USERNAME')})
-        cloud_client().insert_queue(message)
+        event_publisher().trigger()  # Attempt immediate sync
 
     # failed: List[(old_path, new_path)]
     return jsonify({"status": "ok", "failed": []})
@@ -204,7 +194,6 @@ def copy_images(request: Request):
     if not files:
         return jsonify({"status": "ok", "failed": []})
 
-    s3_ping_url = config()['url']['s3_ping_url'].as_str()
     pending_events_file = config()['paths']['pending_events_file'].as_str()
 
     files_to_copy = []
@@ -222,14 +211,11 @@ def copy_images(request: Request):
         shutil.copyfile(filesystem.key_to_abs_path(file['oldPath']), new_path)
         files_to_copy.append(file)
 
-    if not aws.ping(s3_ping_url):
+    # Queue copies for background sync
+    if len(files_to_copy) > 0:
         pending_events = [pending.create_pending_event('PUT', sf['newPath']) for sf in files_to_copy]
         pending.save_pending_events(pending_events_file, pending_events)
-    elif len(files_to_copy) > 0:
-        image_keys = [f['newPath'] for f in files_to_copy]
-        success, failure = cloud_client().insert_bulk([filesystem.key_to_abs_path(k) for k in image_keys], image_keys)
-        message = json.dumps({"events": [{"event": "PUT", "path": s} for s in success], "sender": os.getenv('USERNAME')})
-        cloud_client().insert_queue(message)
+        event_publisher().trigger()
 
     return jsonify({"status": "ok", "failed": []})
 
@@ -288,24 +274,12 @@ def rotate_image(request: Request):
         filesystem.silentremove(new_abs_path)
         return jsonify({"status": "error", "message": "Failed to rotate image"}), 500
 
-    s3_ping_url = config()['url']['s3_ping_url'].as_str()
     pending_events_file = config()['paths']['pending_events_file'].as_str()
 
-    if not aws.ping(s3_ping_url):
-        pending_events = [pending.create_pending_event('MOVE', image_path, new_image_path)]
-        pending.save_pending_events(pending_events_file, pending_events)
-    else:
-        success, failure = cloud_client().move_bulk([(image_path, new_image_path)])
-        print(f"[DEBUG] Success: {success}, Failure: {failure}")
-        if failure:
-            print(f"Failed to upload rotated image to cloud: {failure}")
-            filesystem.silentremove(new_abs_path)
-            return jsonify({"status": "error", "message": "Failed to upload rotated image to cloud"}), 500
-        message = json.dumps({
-            "events": [{"event": "MOVE", "path": image_path, "newPath": new_image_path}],
-            "sender": os.getenv('USERNAME')
-        })
-        cloud_client().insert_queue(message)
+    # Queue rotate (as MOVE) for background sync
+    pending_events = [pending.create_pending_event('MOVE', image_path, new_image_path)]
+    pending.save_pending_events(pending_events_file, pending_events)
+    event_publisher().trigger()
 
     filesystem.silentremove(abs_path)
     return jsonify({"status": "ok", "newPath": new_image_path})
