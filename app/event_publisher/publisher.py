@@ -16,6 +16,7 @@ class EventPublisher:
         self.interval = interval # seconds
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
+        self._processing_lock = threading.Lock()
 
     def start(self):
         """Start the background sync worker."""
@@ -44,115 +45,124 @@ class EventPublisher:
 
     def trigger(self):
         """Trigger an immediate sync attempt in a separate thread."""
-        threading.Thread(target=self._process_pending_events, daemon=True).start()
+        # Use non-daemon thread to ensure processing completes, but don't block caller
+        thread = threading.Thread(target=self._process_pending_events, daemon=False)
+        thread.start()
 
     def _process_pending_events(self):
         """Process pending events from the pending events file."""
-        s3_ping_url = config()['url']['s3_ping_url'].as_str()
-        pending_events_file = config()['paths']['pending_events_file'].as_str()
-
-        # Check if we're online
-        if not aws.ping(s3_ping_url):
+        # Prevent concurrent processing - if already processing, skip this attempt
+        if not self._processing_lock.acquire(blocking=False):
             return
 
-        # Read pending events from file
-        events = pending.get_pending_events(pending_events_file)
-        if not events:
-            return
+        try:
+            s3_ping_url = config()['url']['s3_ping_url'].as_str()
+            pending_events_file = config()['paths']['pending_events_file'].as_str()
 
-        print(f"Processing {len(events)} pending events...")
+            # Check if we're online
+            if not aws.ping(s3_ping_url):
+                return
 
-        # Group events by type for bulk operations
-        put_events = [e for e in events if e['event'] == 'PUT']
-        delete_events = [e for e in events if e['event'] == 'DELETE']
-        move_events = [e for e in events if e['event'] == 'MOVE']
+            # Read pending events from file
+            events = pending.get_pending_events(pending_events_file)
+            if not events:
+                return
 
-        queue_events = []       # Events to broadcast to other clients
-        successful_keys = set() # Track successful event keys for removal
+            print(f"Processing {len(events)} pending events...")
 
-        # Process PUT events (uploads)
-        if put_events:
-            paths = [e['path'] for e in put_events]
-            abs_paths = [filesystem.key_to_abs_path(p) for p in paths]
+            # Group events by type for bulk operations
+            put_events = [e for e in events if e['event'] == 'PUT']
+            delete_events = [e for e in events if e['event'] == 'DELETE']
+            move_events = [e for e in events if e['event'] == 'MOVE']
 
-            # Filter out files that no longer exist (deleted after queuing)
-            valid_pairs = [(abs_p, p) for abs_p, p in zip(abs_paths, paths)
-                          if os.path.exists(abs_p)]
-            skipped_paths = {p for abs_p, p in zip(abs_paths, paths)
-                            if not os.path.exists(abs_p)}
+            queue_events = []       # Events to broadcast to other clients
+            successful_keys = set() # Track successful event keys for removal
 
-            if valid_pairs:
-                abs_paths, paths = zip(*valid_pairs)
-                success, failure = cloud_client().insert_bulk(list(abs_paths), list(paths))
-                success_set = set(success)
+            # Process PUT events (uploads)
+            if put_events:
+                paths = [e['path'] for e in put_events]
+                abs_paths = [filesystem.key_to_abs_path(p) for p in paths]
 
-                # Track successes for removal from queue
-                for e in put_events:
-                    if e['path'] in success_set or e['path'] in skipped_paths:
+                # Filter out files that no longer exist (deleted after queuing)
+                valid_pairs = [(abs_p, p) for abs_p, p in zip(abs_paths, paths)
+                              if os.path.exists(abs_p)]
+                skipped_paths = {p for abs_p, p in zip(abs_paths, paths)
+                                if not os.path.exists(abs_p)}
+
+                if valid_pairs:
+                    abs_paths, paths = zip(*valid_pairs)
+                    success, failure = cloud_client().insert_bulk(list(abs_paths), list(paths))
+                    success_set = set(success)
+
+                    # Track successes for removal from queue
+                    for e in put_events:
+                        if e['path'] in success_set or e['path'] in skipped_paths:
+                            successful_keys.add((e['timestamp'], e['event'], e['path']))
+
+                    queue_events.extend([{"event": "PUT", "path": p} for p in success])
+
+                    if failure:
+                        print(f"Failed to upload (will retry): {failure}")
+                else:
+                    # All files were skipped (deleted), mark as successful
+                    for e in put_events:
                         successful_keys.add((e['timestamp'], e['event'], e['path']))
 
-                queue_events.extend([{"event": "PUT", "path": p} for p in success])
+            # Process DELETE events
+            if delete_events:
+                paths = [e['path'] for e in delete_events]
+                success, failure = cloud_client().delete_bulk(paths)
+                success_set = set(success)
+
+                for e in delete_events:
+                    if e['path'] in success_set:
+                        successful_keys.add((e['timestamp'], e['event'], e['path']))
+
+                queue_events.extend([{"event": "DELETE", "path": p} for p in success])
 
                 if failure:
-                    print(f"Failed to upload (will retry): {failure}")
+                    print(f"Failed to delete (will retry): {failure}")
+
+            # Process MOVE events
+            if move_events:
+                pairs = [(e['path'], e['newPath']) for e in move_events]
+                success, failure = cloud_client().move_bulk(pairs)
+
+                success_old_paths = {p[0] for p in success}
+                for e in move_events:
+                    if e['path'] in success_old_paths:
+                        successful_keys.add((e['timestamp'], e['event'], e['path']))
+
+                queue_events.extend([{"event": "MOVE", "path": p[0], "newPath": p[1]}
+                                   for p in success])
+
+                if failure:
+                    print(f"Failed to move (will retry): {failure}")
+
+            # Broadcast successful events to other clients via SQS
+            if queue_events:
+                message = json.dumps({
+                    "events": queue_events,
+                    "sender": os.getenv('USERNAME')
+                })
+                cloud_client().insert_queue(message)
+
+            # Update queue file - clear and re-save failed events for retry
+            failed_events = [e for e in events
+                             if (e['timestamp'], e['event'], e['path']) not in successful_keys]
+
+            pending.clear_pending_events(pending_events_file)
+            if failed_events:
+                retry_events = [
+                    pending.create_pending_event(e['event'], e['path'], e.get('newPath', ''))
+                    for e in failed_events
+                ]
+                pending.save_pending_events(pending_events_file, retry_events)
+                print(f"Synced {len(successful_keys)} events. {len(failed_events)} pending retry.")
             else:
-                # All files were skipped (deleted), mark as successful
-                for e in put_events:
-                    successful_keys.add((e['timestamp'], e['event'], e['path']))
-
-        # Process DELETE events
-        if delete_events:
-            paths = [e['path'] for e in delete_events]
-            success, failure = cloud_client().delete_bulk(paths)
-            success_set = set(success)
-
-            for e in delete_events:
-                if e['path'] in success_set:
-                    successful_keys.add((e['timestamp'], e['event'], e['path']))
-
-            queue_events.extend([{"event": "DELETE", "path": p} for p in success])
-
-            if failure:
-                print(f"Failed to delete (will retry): {failure}")
-
-        # Process MOVE events
-        if move_events:
-            pairs = [(e['path'], e['newPath']) for e in move_events]
-            success, failure = cloud_client().move_bulk(pairs)
-
-            success_old_paths = {p[0] for p in success}
-            for e in move_events:
-                if e['path'] in success_old_paths:
-                    successful_keys.add((e['timestamp'], e['event'], e['path']))
-
-            queue_events.extend([{"event": "MOVE", "path": p[0], "newPath": p[1]}
-                               for p in success])
-
-            if failure:
-                print(f"Failed to move (will retry): {failure}")
-
-        # Broadcast successful events to other clients via SQS
-        if queue_events:
-            message = json.dumps({
-                "events": queue_events,
-                "sender": os.getenv('USERNAME')
-            })
-            cloud_client().insert_queue(message)
-
-        # Update queue file - clear and re-save failed events for retry
-        failed_events = [e for e in events
-                         if (e['timestamp'], e['event'], e['path']) not in successful_keys]
-
-        pending.clear_pending_events(pending_events_file)
-        if failed_events:
-            retry_events = [
-                pending.create_pending_event(e['event'], e['path'], e.get('newPath', ''))
-                for e in failed_events
-            ]
-            pending.save_pending_events(pending_events_file, retry_events)
-            print(f"Synced {len(successful_keys)} events. {len(failed_events)} pending retry.")
-        else:
-            print(f"Synced {len(successful_keys)} events.")
+                print(f"Synced {len(successful_keys)} events.")
+        finally:
+            self._processing_lock.release()
 
 
 # Global singleton
