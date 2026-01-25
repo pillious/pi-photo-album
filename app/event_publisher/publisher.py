@@ -9,6 +9,7 @@ import time
 from app.config.config import config
 from app.utils import pending, aws, filesystem
 from app.cloud_clients.cloud_client import cloud_client
+from app.announcer import event_announcer
 
 
 class EventPublisher:
@@ -23,7 +24,6 @@ class EventPublisher:
         """Start the background sync worker."""
         if self._thread is not None and self._thread.is_alive():
             return
-        time.sleep(self.init_delay)
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -38,6 +38,10 @@ class EventPublisher:
 
     def _run(self):
         """Main loop that processes pending events periodically."""
+        # Wait for initial delay before starting to process events
+        if self.init_delay > 0:
+            self._stop_event.wait(self.init_delay)
+
         while not self._stop_event.is_set():
             try:
                 self._process_pending_events()
@@ -148,6 +152,25 @@ class EventPublisher:
                     "sender": os.getenv('USERNAME')
                 })
                 cloud_client().insert_queue(message)
+
+            # Announce sync completions to UI via SSE
+            if successful_keys:
+                synced_paths = []
+                for (_, event_type, path) in successful_keys:
+                    if event_type == 'PUT':
+                        synced_paths.append(path)
+                    elif event_type == 'MOVE':
+                        # Find the newPath for this move event
+                        for e in move_events:
+                            if e['path'] == path:
+                                synced_paths.append(e['newPath'])
+                                break
+
+                if synced_paths:
+                    event_announcer().announce(json.dumps({
+                        "events": [{"event": "SYNCED", "paths": synced_paths}],
+                        "sender": os.getenv('USERNAME')
+                    }))
 
             # Update queue file - clear and re-save failed events for retry
             failed_events = [e for e in events
