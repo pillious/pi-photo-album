@@ -12,8 +12,9 @@ from app.cloud_clients.cloud_client import cloud_client
 
 
 class EventPublisher:
-    def __init__(self, interval: int = 10):
+    def __init__(self, interval: int, init_delay: int):
         self.interval = interval # seconds
+        self.init_delay = init_delay # seconds
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._processing_lock = threading.Lock()
@@ -22,6 +23,7 @@ class EventPublisher:
         """Start the background sync worker."""
         if self._thread is not None and self._thread.is_alive():
             return
+        time.sleep(self.init_delay)
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -168,11 +170,11 @@ class EventPublisher:
 # Global singleton
 _event_publisher: EventPublisher | None = None
 
-def init_event_publisher(interval: int = 10):
+def init_event_publisher(interval: int, init_delay: int = 0):
     global _event_publisher
     if _event_publisher is not None:
         return  # Already initialized
-    _event_publisher = EventPublisher(interval)
+    _event_publisher = EventPublisher(interval, init_delay)
     _event_publisher.start()
 
 def event_publisher() -> EventPublisher:

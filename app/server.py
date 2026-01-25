@@ -12,7 +12,7 @@ from app.routes import \
     filesystem as filesystem_routes, \
     template as template_routes, \
     event as event_routes
-from app.event_publisher.publisher import init_event_publisher, event_publisher
+from app.event_publisher.publisher import init_event_publisher
 
 app = Flask(__name__)
 
@@ -20,7 +20,8 @@ utils.load_env([".env", os.path.abspath(os.path.expandvars('$HOME/.config/pi-pho
 load_config()
 init_cloud_client(new_aws_client())
 init_event_announcer()
-init_event_publisher(interval=30)
+# The delay is to allow a potential resync to complete before starting the publisher.
+init_event_publisher(interval=30, init_delay=30)
 
 app.config['MAX_CONTENT_LENGTH'] = config()['files']['max_content_length'].as_int()
 

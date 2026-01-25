@@ -180,7 +180,7 @@ def move_images(request: Request):
     if len(files_to_move) > 0:
         pending_events = [pending.create_pending_event('MOVE', sf['oldPath'], sf['newPath']) for sf in files_to_move]
         pending.save_pending_events(pending_events_file, pending_events)
-        event_publisher().trigger()  # Attempt immediate sync
+        event_publisher().trigger()
 
     # failed: List[(old_path, new_path)]
     return jsonify({"status": "ok", "failed": []})
