@@ -20,9 +20,10 @@ const refreshUI = () => {
 }
 
 // On page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     settingsState = savedSettings || { ...DEFAULT_SETTINGS };
 
+    await fetchPendingSyncPaths();
     refreshUI();
 
     // Settings section event listeners

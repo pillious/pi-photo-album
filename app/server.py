@@ -91,6 +91,10 @@ def preview():
 def rotate_image():
     return filesystem_routes.rotate_image(request)
 
+@app.route('/pending-sync', methods=['GET'])
+def pending_sync():
+    return filesystem_routes.get_pending_sync()
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})

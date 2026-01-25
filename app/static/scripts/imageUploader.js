@@ -145,6 +145,7 @@ const handleImagesUpload = async (e) => {
         for (const success of respData.success ?? []) {
             const filePath = removeAlbumsPrefix(success);
             updateFileSystem(fileSystemSnapshot, '', filePath);
+            pendingSyncPaths.add(filePath);  // Mark as pending sync
         }
 
         filesInStaging = newFilesInStaging;

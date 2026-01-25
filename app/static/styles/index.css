@@ -70,10 +70,23 @@
     list-style-image: url('/static/images/image-icon.png');
 }
 
-.album-image span {
+.album-image .image-name {
     cursor: pointer;
     color: #6666db;
     text-decoration: underline;
+}
+
+/* Sync pending icon - cloud warning icon */
+.sync-pending {
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    width: 14px;
+    height: 14px;
+    background-image: url('/static/images/cloud-warning-icon.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 #create-folder-dialog {

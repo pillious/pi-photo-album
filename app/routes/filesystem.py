@@ -282,3 +282,18 @@ def rotate_image(request: Request):
 
     filesystem.silentremove(abs_path)
     return jsonify({"status": "ok", "newPath": new_image_path})
+
+def get_pending_sync():
+    """Get list of file paths that are pending sync to cloud."""
+    pending_events_file = config()['paths']['pending_events_file'].as_str()
+    events = pending.get_pending_events(pending_events_file)
+
+    pending_paths = set()
+    for evt in events:
+        if evt['event'] == 'PUT':
+            pending_paths.add(evt['path'])
+        elif evt['event'] == 'MOVE':
+            pending_paths.add(evt['newPath'])  # New location is pending
+        # skips DELETE events since the delete images aren't displayed on the UI anyway.
+
+    return jsonify({"status": "ok", "pendingPaths": list(pending_paths)})

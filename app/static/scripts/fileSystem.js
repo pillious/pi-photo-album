@@ -9,6 +9,19 @@ const selectedFolders = { albums: {} };
 let allowFileSelection = false;
 let userSelectionCount = 0;
 
+// Global state for pending sync paths
+let pendingSyncPaths = new Set();
+
+const fetchPendingSyncPaths = async () => {
+    try {
+        const resp = await fetch('/pending-sync');
+        const data = await resp.json();
+        pendingSyncPaths = new Set(data.pendingPaths.map(p => removeAlbumsPrefix(p)));
+    } catch (e) {
+        console.error('Failed to fetch pending sync paths:', e);
+    }
+};
+
 const overrideFileSystem = (fileSystem) => {
     if (fileSystem && 'albums' in fileSystem) {
         fileSystemSnapshot.albums = fileSystem.albums;
@@ -80,6 +93,7 @@ const updateFileSystemUI = () => {
                 fileLi.classList.add('album-image');
                 fileLi.setAttribute('data-album-path', currPath);
                 const fileName = document.createElement('span');
+                fileName.classList.add('image-name');
                 fileName.innerHTML = key.substring(key.indexOf('.') + 1);
                 fileName.onclick = () => getImagePreview(currPath);
                 selectItem.onchange = (e) => {
@@ -87,6 +101,14 @@ const updateFileSystemUI = () => {
                 };
                 fileLi.appendChild(selectItem);
                 fileLi.appendChild(fileName);
+
+                // Add sync icon if file is pending sync
+                if (pendingSyncPaths.has(currPath)) {
+                    const syncIcon = document.createElement('span');
+                    syncIcon.classList.add('sync-pending');
+                    syncIcon.title = 'Syncing to cloud...';
+                    fileLi.appendChild(syncIcon);
+                }
 
                 parent.appendChild(fileLi);
             }
@@ -165,9 +187,11 @@ const handleCopyFiles = async (e) => {
 
         pathPairs
             .filter((pair) => !failedOldPaths.includes(pair.oldPath))
-            .forEach((pair) =>
-                updateFileSystem(fileSystemSnapshot, '', removeAlbumsPrefix(pair.newPath))
-            );
+            .forEach((pair) => {
+                const newPath = removeAlbumsPrefix(pair.newPath);
+                updateFileSystem(fileSystemSnapshot, '', newPath);
+                pendingSyncPaths.add(newPath);  // Mark as pending sync
+            });
 
         if (failedOldPaths.length > 0) {
             alert(`Failed to copy the following files:\n${failedOldPaths.join('\n')}`);
@@ -205,13 +229,13 @@ const handleMoveFiles = async (e) => {
 
         pathPairs
             .filter((pair) => !failedOldPaths.includes(pair.oldPath))
-            .forEach((pair) =>
-                updateFileSystem(
-                    fileSystemSnapshot,
-                    removeAlbumsPrefix(pair.oldPath),
-                    removeAlbumsPrefix(pair.newPath)
-                )
-            );
+            .forEach((pair) => {
+                const oldPath = removeAlbumsPrefix(pair.oldPath);
+                const newPath = removeAlbumsPrefix(pair.newPath);
+                updateFileSystem(fileSystemSnapshot, oldPath, newPath);
+                pendingSyncPaths.delete(oldPath);  // Remove old path from pending
+                pendingSyncPaths.add(newPath);  // Mark new path as pending sync
+            });
 
         if (failedOldPaths.length > 0)
             alert(`Failed to move the following files:\n${failedOldPaths.join('\n')}`);
@@ -325,13 +349,13 @@ const handleRenameFile = async (e) => {
         // TODO: if the renamed item is a folder, don't need to rename each file individually, just move the folder obj.
         pathPairs
             .filter((pair) => !failedOldPaths.includes(pair.oldPath))
-            .forEach((pair) =>
-                updateFileSystem(
-                    fileSystemSnapshot,
-                    removeAlbumsPrefix(pair.oldPath),
-                    removeAlbumsPrefix(pair.newPath)
-                )
-            );
+            .forEach((pair) => {
+                const oldPath = removeAlbumsPrefix(pair.oldPath);
+                const newPath = removeAlbumsPrefix(pair.newPath);
+                updateFileSystem(fileSystemSnapshot, oldPath, newPath);
+                pendingSyncPaths.delete(oldPath);  // Remove old path from pending
+                pendingSyncPaths.add(newPath);  // Mark new path as pending sync
+            });
 
         if (failedOldPaths.length > 0)
             alert(`Failed to move the following files:\n${failedOldPaths.join('\n')}`);
@@ -562,7 +586,7 @@ const setToolStates = (change) => {
  *
  * @param {string} data The data sent from the server as stringified JSON.
  */
-const handleEvent = (data) => {
+const handleEvent = async (data) => {
     const event = JSON.parse(data);
 
     for (const message of event.events) {
@@ -590,6 +614,7 @@ const handleEvent = (data) => {
                 if ('fileStructure' in message) overrideFileSystem(message.fileStructure);
                 console.log('RESYNC event:');
                 console.log(message.fileStructure);
+                await fetchPendingSyncPaths();
                 refreshUI();
                 break;
             }
@@ -601,6 +626,12 @@ const handleEvent = (data) => {
                 } else {
                     hideLoadingSpinner();
                 }
+                break;
+            }
+            case 'SYNCED': {
+                const paths = message.paths.map(p => removeAlbumsPrefix(p));
+                console.log('SYNCED event:', paths);
+                paths.forEach(p => pendingSyncPaths.delete(p));
                 break;
             }
             default: {
