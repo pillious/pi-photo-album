@@ -4,6 +4,7 @@ import time
 import json
 import botocore
 import os
+import threading
 
 from app.config.config import config, load_config
 from app.utils import utils, aws, pending
@@ -15,6 +16,8 @@ load_config()
 def main():
     sqs_consumer = SQSQueueConsumer()
     failed_health_checks = 0
+    resync_thread = None
+    resync_result = {"ok": False}
     while True:
         if not is_api_healthy():
             if failed_health_checks == 0:
@@ -23,13 +26,30 @@ def main():
             time.sleep(2 ** min(failed_health_checks, 5)) # exponential backoff
             continue
 
+        if resync_thread is not None and resync_thread.is_alive():
+            print("Resync already in progress. Skipping...")
+            time.sleep(5)
+            continue
+
+        if resync_thread is not None:
+            if resync_result["ok"]:
+                pending.write_poll_time()
+                time.sleep(30)
+            else:
+                print("Error sending resync request.")
+                time.sleep(5)
+            resync_thread = None
+            continue
+
         if not pending.is_within_retention_period():
             print("Retention period expired. Sending resync request...")
-            if not send_resync_request():
-                print("Error sending resync request.")
-                continue
-            pending.write_poll_time()
-            time.sleep(30) # Wait for the resync to complete
+            resync_result = {"ok": False}
+            resync_thread = threading.Thread(
+                target=_run_resync,
+                args=(resync_result,),
+                daemon=True,
+            )
+            resync_thread.start()
             continue
 
         try:
@@ -103,13 +123,17 @@ def send_events(events):
         return False
     return True
 
+def _run_resync(result):
+    result["ok"] = send_resync_request()
+
 def send_resync_request():
     """
     Send a resync filesystem request to the API.
+    Blocks until the API finishes resyncing.
     """
     try:
         api_url = config()['url']['api_url'].as_str()
-        response = requests.post(f"{api_url}/resync", timeout=10)
+        response = requests.post(f"{api_url}/resync", timeout=None)
         if response.status_code != 200:
             return False
         status = response.json().get('status')

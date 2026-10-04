@@ -34,6 +34,7 @@ class AWSClient(CloudClient):
         self.bucket_name = bucket_name
 
         self.s3_client = self._create_s3_client()
+        self.download_s3_client = self._create_download_s3_client()
         self.sqs_client = self._create_sqs_client()
 
     def _create_s3_client(self):
@@ -46,6 +47,20 @@ class AWSClient(CloudClient):
                 connect_timeout=2,
                 read_timeout=2,
                 retries={'total_max_attempts': 1} # Don't retry
+            )
+        )
+
+    def _create_download_s3_client(self):
+        return boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.getenv('AWS_REGION'),
+            config=botocore.config.Config(
+                connect_timeout=2,
+                read_timeout=60,
+                max_pool_connections=4,
+                retries={'total_max_attempts': 1}
             )
         )
 
@@ -105,26 +120,50 @@ class AWSClient(CloudClient):
         except Exception as e:
             CloudClientException(f"Error deleting image from S3: {e}")
 
+    @retry()
+    def _download_file(self, image_path: str, image_key: str):
+        try:
+            parent = os.path.dirname(image_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            self.download_s3_client.download_file(self.bucket_name, image_key, image_path)
+        except Exception as e:
+            raise CloudClientException(f"Error downloading image from S3: {e}")
+
     def get_bulk(self, image_paths: List[str], image_keys: List[str]) -> Tuple[List[str], List[str]]:
         success = []
         failure = []
+        to_download = []
+        total = len(image_keys)
+        completed = 0
+
+        for image_path, image_key in zip(image_paths, image_keys):
+            if os.path.isfile(image_path) and os.path.getsize(image_path) > 0:
+                success.append(image_key)
+                completed += 1
+            else:
+                to_download.append((image_path, image_key))
+
+        if total > 0 and (not to_download or completed % 20 == 0) and completed > 0:
+            print(f"Downloaded {completed}/{total}")
+
         future_map = {}
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            for image_path, image_key in zip(image_paths, image_keys):
-                future = executor.submit(self.get, image_key)
-                future_map[future] = (image_path, image_key)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            for image_path, image_key in to_download:
+                future = executor.submit(self._download_file, image_path, image_key)
+                future_map[future] = image_key
 
             for future in concurrent.futures.as_completed(future_map):
-                image_path, image_key = future_map[future]
+                image_key = future_map[future]
                 try:
-                    image_bytes: bytes = future.result()
-                    os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                    with open(image_path, "wb") as f:
-                        f.write(image_bytes)
+                    future.result()
                     success.append(image_key)
                 except Exception as e:
-                    print(e)
+                    print(f"Failed to download {image_key}: {e}")
                     failure.append(image_key)
+                completed += 1
+                if completed % 20 == 0 or completed == total:
+                    print(f"Downloaded {completed}/{total}")
 
         return success, failure
 
