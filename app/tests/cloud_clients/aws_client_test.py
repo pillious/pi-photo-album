@@ -165,6 +165,25 @@ class TestAWSClient:
         with pytest.raises(Exception):
             aws_client.move("albums/test-user/nonexistent.jpg", "albums/test-user/should_not_exist.jpg")
 
+    def test_get_bulk(self, aws_client, test_bucket, tmp_path: Path):
+        keys = [
+            "albums/test-user/photo1.jpg",
+            "albums/test-user/photo2.jpg",
+            "albums/test-user/a/photo3.jpg",
+        ]
+        paths = [str(tmp_path / key) for key in keys]
+
+        existing = Path(paths[0])
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_bytes(b"already-there")
+
+        success, failure = aws_client.get_bulk(paths, keys)
+        assert set(success) == set(keys)
+        assert failure == []
+        assert existing.read_bytes() == b"already-there"
+        assert Path(paths[1]).read_bytes() == b"test"
+        assert Path(paths[2]).read_bytes() == b"test"
+
     # def test_insert_bulk(self, aws_client, test_bucket, tmp_path: Path):
         # test_image_paths = []
         # image_keys = []
